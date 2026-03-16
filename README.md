@@ -39,6 +39,26 @@ npx serve -l 3000
 
 Then open **http://localhost:8080** (or **http://localhost:3000**). Others on the same network use **http://&lt;this-PC-IP&gt;:8080** (find IP with `ipconfig`). Or double‑click **`start-server.bat`** to do the same without typing commands.
 
+## Pushing to GitHub
+
+The project is a Git repo with an initial commit. To put it on GitHub:
+
+1. **Create a new repository** on [GitHub](https://github.com/new):  
+   - Name it (e.g. `ctl-dashboard`).  
+   - Do **not** add a README, .gitignore, or license (they already exist here).  
+   - Create the repo.
+
+2. **Add the remote and push** (replace `YOUR_USERNAME` and `REPO_NAME` with your GitHub username and repo name):
+
+   ```bash
+   cd C:\Users\george.anderson\Projects\ctl-dashboard
+   git remote add origin https://github.com/YOUR_USERNAME/REPO_NAME.git
+   git branch -M main
+   git push -u origin main
+   ```
+
+   If GitHub asks for login, use a [Personal Access Token](https://github.com/settings/tokens) as the password, or sign in with GitHub CLI (`gh auth login`) if you use it.
+
 ## Local network (access from 2 or more computers)
 
 To use the dashboard on **this PC and another computer on the same Wi‑Fi/LAN**:
