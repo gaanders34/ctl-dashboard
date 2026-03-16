@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CTL Daily Production Report | Steel Distribution</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="dashboard">
+    <header class="header">
+      <div class="header-left">
+        <div class="logo">
+          <img src="assets/willbanks-logo.png" alt="Willbanks Metals" class="header-logo" />
+          <h1>CTL Daily Production Report</h1>
+        </div>
+        <div class="header-date-select">
+          <label for="report-date-select" class="header-date-label">Report date</label>
+          <input type="date" id="report-date-select" class="input-date header-date-input" aria-label="Select date to view" title="Select date — summary and tables show data for this date" />
+        </div>
+      </div>
+      <div class="header-right">
+        <button type="button" class="btn btn-secondary" id="btn-targets-toggle" aria-expanded="false" title="Set monthly coil target, downtime cost, and run costs" aria-label="Set targets">Targets</button>
+        <button type="button" class="btn btn-secondary" id="btn-enter-daily-toggle" aria-expanded="false" title="Enter coils, crew, hours, and downtime by line and shift" aria-label="Enter daily production">Enter daily</button>
+        <button type="button" class="btn btn-secondary" id="btn-paste-toggle" aria-expanded="false" title="Paste director email to update dashboard" aria-label="Paste from email">Paste from email</button>
+        <button type="button" class="btn btn-secondary" id="btn-entries-toggle" aria-expanded="false" title="View saved daily entries by date" aria-label="View entries">View entries</button>
+        <button type="button" class="btn btn-secondary" id="btn-heatmap-toggle" aria-expanded="false" title="View downtime heat map by date and line" aria-label="View heat map">View heat map</button>
+        <button type="button" class="btn btn-secondary btn-reset" id="btn-reset-all" title="Clear all saved report data and reload" aria-label="Reset data">Reset data</button>
+        <button type="button" class="btn btn-secondary" id="btn-theme-toggle" title="Switch between light and dark theme" aria-label="Theme: dark">Dark</button>
+        <time id="current-time" class="clock"></time>
+        <span id="current-date" class="date"></span>
+      </div>
+    </header>
+
+    <nav class="main-tabs" role="tablist" aria-label="Main sections">
+      <button type="button" class="main-tab active" id="tab-dashboard" role="tab" aria-selected="true" data-tab="dashboard">Dashboard</button>
+      <button type="button" class="main-tab" id="tab-operations" role="tab" aria-selected="false" data-tab="operations">Operations</button>
+      <button type="button" class="main-tab" id="tab-schedule" role="tab" aria-selected="false" data-tab="schedule">Production Schedule</button>
+      <button type="button" class="main-tab" id="tab-openstatus" role="tab" aria-selected="false" data-tab="openstatus">Open Status</button>
+      <button type="button" class="main-tab" id="tab-orderpivot" role="tab" aria-selected="false" data-tab="orderpivot">Due by Customer</button>
+      <button type="button" class="main-tab" id="tab-materialavailability" role="tab" aria-selected="false" data-tab="materialavailability">Material Availability</button>
+      <button type="button" class="main-tab" id="tab-manager" role="tab" aria-selected="false" data-tab="manager">Manager</button>
+      <button type="button" class="main-tab" id="tab-agent" role="tab" aria-selected="false" data-tab="agent">Agent</button>
+      <button type="button" class="main-tab" id="tab-otdtracker" role="tab" aria-selected="false" data-tab="otdtracker">OTD Tracker</button>
+      <button type="button" class="main-tab" id="tab-siop" role="tab" aria-selected="false" data-tab="siop">SIOP</button>
+    </nav>
+
+    <div id="dashboard-content" class="tab-content">
+    <section class="dashboard-banner" id="dashboard-banner" aria-live="polite" title="Forecast coils: week (WTD) and month (MTD) based on saved data">
+      <div class="dashboard-banner-inner">
+        <span class="banner-label" title="Week-to-date forecast">Week forecast</span>
+        <span class="banner-value" id="banner-week-forecast" aria-label="Week forecast value">—</span>
+        <span class="banner-status" id="banner-week-status"></span>
+        <span class="banner-sep"></span>
+        <span class="banner-label" title="Month-to-date forecast">Month forecast</span>
+        <span class="banner-value" id="banner-month-forecast" aria-label="Month forecast value">—</span>
+        <span class="banner-status" id="banner-month-status"></span>
+      </div>
+    </section>
+    <section class="alerts-strip" id="alerts-strip" hidden></section>
+
+    <section class="paste-panel targets-panel" id="targets-panel" hidden>
+      <div class="paste-panel-inner">
+        <h3 class="targets-title">Set targets</h3>
+        <label for="target-monthly-coils">Monthly coil target</label>
+        <input type="number" id="target-monthly-coils" class="input-num" min="0" placeholder="e.g. 1200" />
+        <label for="target-max-downtime-cost">Max downtime cost this month ($)</label>
+        <input type="number" id="target-max-downtime-cost" class="input-num" min="0" placeholder="e.g. 10000" />
+        <label for="target-cost-half-line">Run cost per hour — ½ line ($)</label>
+        <input type="number" id="target-cost-half-line" class="input-num" min="0" step="0.01" placeholder="e.g. 450" />
+        <label for="target-cost-redbud">Run cost per hour — Redbud ($)</label>
+        <input type="number" id="target-cost-redbud" class="input-num" min="0" step="0.01" placeholder="e.g. 700" />
+        <label for="target-hours-budgeted-half-line">Hours budgeted (month) — ½ line</label>
+        <input type="number" id="target-hours-budgeted-half-line" class="input-num" min="0" step="0.5" placeholder="e.g. 240" />
+        <label for="target-hours-budgeted-redbud">Hours budgeted (month) — Redbud</label>
+        <input type="number" id="target-hours-budgeted-redbud" class="input-num" min="0" step="0.5" placeholder="e.g. 240" />
+        <label for="target-otd-pct">OTD target (%)</label>
+        <input type="number" id="target-otd-pct" class="input-num" min="0" max="100" step="0.5" placeholder="e.g. 95" title="Goal for on-time delivery % (e.g. 95). Shown in Manager and OTD Tracker." />
+        <div class="paste-actions">
+          <button type="button" class="btn btn-primary" id="btn-save-targets">Save targets</button>
+          <span class="paste-status" id="targets-status"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="enter-daily-panel paste-panel" id="enter-daily-panel" hidden>
+      <div class="paste-panel-inner">
+        <label for="daily-date-input">Report date</label>
+        <input type="date" id="daily-date-input" class="input-date" />
+        <div class="daily-shifts-grid" id="daily-shifts-form"></div>
+        <div class="paste-actions">
+          <button type="button" class="btn btn-primary" id="btn-save-daily">Save day</button>
+          <button type="button" class="btn btn-secondary" id="btn-copy-previous-day" title="Copy line/shift data from the most recent earlier report">Copy from previous day</button>
+          <span class="paste-status" id="enter-daily-status"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="paste-panel" id="paste-panel" hidden>
+      <div class="paste-panel-inner">
+        <label for="report-date-input">Report date (optional)</label>
+        <input type="date" id="report-date-input" class="input-date" />
+        <label for="paste-textarea">Paste director email below</label>
+        <textarea id="paste-textarea" class="paste-textarea" placeholder="½ line 1st:&#10;12 coils&#10;½ line 2nd: 8 coils&#10;½ line 3rd: 6 coils&#10;Redbud 1st: 13 coils&#10;..."></textarea>
+        <div class="paste-actions">
+          <button type="button" class="btn btn-primary" id="btn-parse-email">Update dashboard</button>
+          <span class="paste-status" id="paste-status"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="paste-panel entries-table-panel" id="entries-table-panel" hidden>
+      <div class="paste-actions entries-table-actions">
+        <button type="button" class="btn btn-secondary" id="btn-export-entries-csv">Export CSV</button>
+      </div>
+      <div class="entries-table-wrap">
+        <h3 class="targets-title">All date entries</h3>
+        <div class="entries-table-scroll">
+          <table class="entries-table" id="entries-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>½ line 1st</th>
+                <th>½ line 2nd</th>
+                <th>½ line total</th>
+                <th>Redbud 1st</th>
+                <th>Redbud 2nd</th>
+                <th>Redbud total</th>
+                <th>Total coils</th>
+                <th>Downtime</th>
+                <th>Crew</th>
+              </tr>
+            </thead>
+            <tbody id="entries-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="paste-panel heatmap-panel" id="heatmap-panel" hidden>
+      <div class="heatmap-inner">
+        <h3 class="targets-title">Downtime heat map by equipment</h3>
+        <p class="section-note">Data comes from Enter daily.</p>
+        <div class="heatmap-controls">
+          <label>Start date <input type="date" id="heatmap-start-date" class="input-date" /></label>
+          <label>Days <input type="number" id="heatmap-days" class="input-num" min="1" max="90" value="31" /></label>
+          <label>View <select id="heatmap-filter" class="input-select">
+            <option value="all">All equipment</option>
+            <option value="process">By process area</option>
+            <option value="equipment">Single equipment</option>
+          </select></label>
+          <label id="heatmap-filter-process-wrap" class="heatmap-filter-wrap" hidden>Process area <select id="heatmap-process" class="input-select"></select></label>
+          <label id="heatmap-filter-equipment-wrap" class="heatmap-filter-wrap" hidden>Equipment <select id="heatmap-equipment" class="input-select"></select></label>
+        </div>
+        <p class="section-note"><button type="button" class="btn-link" id="btn-edit-equipment">Edit equipment list &amp; issue types</button></p>
+        <div class="heatmap-grid-wrap" id="heatmap-grid-wrap"></div>
+      </div>
+    </section>
+
+    <section class="paste-panel" id="manage-equipment-panel" hidden>
+      <div class="paste-panel-inner">
+        <h3 class="targets-title">Edit equipment list &amp; issue types</h3>
+        <div class="manage-tabs">
+          <button type="button" class="manage-tab active" data-tab="equipment">Equipment list</button>
+          <button type="button" class="manage-tab" data-tab="issues">Issue types</button>
+        </div>
+        <div id="manage-equipment-content" class="manage-content"></div>
+        <div id="manage-issues-content" class="manage-content" hidden></div>
+        <div class="paste-actions">
+          <button type="button" class="btn btn-primary" id="btn-close-manage">Done</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="summary-row">
+      <div class="summary-card summary-total" title="Total coils produced on report date (all lines and shifts)">
+        <span class="summary-label">Total coils</span>
+        <span class="summary-value" id="total-coils" aria-label="Total coils">—</span>
+      </div>
+      <div class="summary-card" title="½ line coils on report date">
+        <span class="summary-label">½ line total</span>
+        <span class="summary-value" id="half-line-total">—</span>
+      </div>
+      <div class="summary-card" title="Redbud line coils on report date">
+        <span class="summary-label">Redbud total</span>
+        <span class="summary-value" id="redbud-total">—</span>
+      </div>
+      <div class="summary-card" title="Total downtime minutes on report date">
+        <span class="summary-label">Total downtime</span>
+        <span class="summary-value" id="total-downtime">—</span>
+      </div>
+      <div class="summary-card" title="Total operators across lines and shifts">
+        <span class="summary-label">Operators (day)</span>
+        <span class="summary-value" id="operators-day">—</span>
+      </div>
+      <div class="summary-card" title="Scheduled hours across lines and shifts">
+        <span class="summary-label">Hours scheduled (day)</span>
+        <span class="summary-value" id="hours-scheduled-day">—</span>
+      </div>
+      <div class="summary-card" title="Crew × hours (man-hours) for report date">
+        <span class="summary-label">Man-hours scheduled</span>
+        <span class="summary-value" id="man-hours">—</span>
+      </div>
+      <div class="summary-card" id="summary-performance-wrap" title="Scheduled hours as % of available (MTD)">
+        <span class="summary-label">Performance % (MTD)</span>
+        <span class="summary-value" id="performance-pct">—</span>
+      </div>
+    </section>
+
+    <section class="summary-row mtd-totals-row" aria-label="Month-to-date totals">
+      <div class="summary-card summary-total" title="Total coils MTD">
+        <span class="summary-label">MTD total coils</span>
+        <span class="summary-value" id="mtd-total-coils" aria-label="MTD total coils">—</span>
+      </div>
+      <div class="summary-card" title="½ line coils MTD">
+        <span class="summary-label">MTD ½ line</span>
+        <span class="summary-value" id="mtd-half-line-total">—</span>
+      </div>
+      <div class="summary-card" title="Redbud coils MTD">
+        <span class="summary-label">MTD Redbud</span>
+        <span class="summary-value" id="mtd-redbud-total">—</span>
+      </div>
+      <div class="summary-card" title="Total downtime minutes MTD">
+        <span class="summary-label">MTD downtime</span>
+        <span class="summary-value" id="mtd-total-downtime">—</span>
+      </div>
+      <div class="summary-card" title="Total operators (sum of crew) MTD">
+        <span class="summary-label">MTD operators</span>
+        <span class="summary-value" id="mtd-operators">—</span>
+      </div>
+      <div class="summary-card" title="Scheduled hours MTD">
+        <span class="summary-label">MTD hours sched.</span>
+        <span class="summary-value" id="mtd-hours-scheduled">—</span>
+      </div>
+      <div class="summary-card" title="Man-hours MTD">
+        <span class="summary-label">MTD man-hours</span>
+        <span class="summary-value" id="mtd-man-hours">—</span>
+      </div>
+    </section>
+
+    <section class="week-selector-section" aria-label="Week and date range for line and chart data">
+      <div class="week-selector-inner">
+        <span class="week-date-range-label">Date range:</span>
+        <span id="week-date-range" class="week-date-range-value" aria-live="polite">—</span>
+        <label for="week-select" class="week-select-label">Week</label>
+        <select id="week-select" class="input-select week-select" aria-label="Select week (week begins Sunday)">
+          <option value="">—</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="lines-section" id="lines-section"></section>
+
+    <section class="charts-row">
+      <div class="chart-card">
+        <h3>Coils by line & shift</h3>
+        <p class="chart-description">Number of coils produced on each line for 1st and 2nd shift for the report date.</p>
+        <div class="chart-wrap">
+          <canvas id="chart-coils"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Downtime by line (minutes)</h3>
+        <p class="chart-description">Total downtime minutes per line for the report date.</p>
+        <div class="chart-wrap">
+          <canvas id="chart-downtime"></canvas>
+        </div>
+      </div>
+    </section>
+    <section class="charts-row">
+      <div class="chart-card chart-wide">
+        <h3>Daily coils by line</h3>
+        <p class="chart-description">Bar chart: coil count per day for ½ line vs Redbud. Choose start date and number of days.</p>
+        <div class="chart-daily-controls">
+          <label>Start date <input type="date" id="chart-daily-start-date" class="input-date" /></label>
+          <label>Days <input type="number" id="chart-daily-days" class="input-num" min="1" max="90" value="31" /></label>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-daily-coils"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="tracking-section">
+      <h2 class="section-title">Running totals</h2>
+      <div class="tracking-grid" id="running-totals"></div>
+    </section>
+
+    <section class="tracking-section">
+      <h2 class="section-title">Weekly &amp; monthly forecast</h2>
+      <p class="section-note">Week forecast uses average of days with data, projected through Saturday (Mon–Sat). Month uses MTD average (Mon–Fri). Green = on target, red = off target.</p>
+      <div class="forecast-target-grid" id="forecast-target-grid"></div>
+    </section>
+
+    <section class="tracking-section">
+      <h2 class="section-title">Forecast — coils</h2>
+      <p class="section-note">Monthly forecast from MTD; week from WTD.</p>
+      <div class="tracking-grid" id="forecast-coils"></div>
+      <div class="target-vs-actual" id="target-vs-actual"></div>
+    </section>
+
+    <section class="tracking-section">
+      <h2 class="section-title">Monthly hours & budget</h2>
+      <p class="section-note">Budget = 75% of total hours available (½ line + Redbud combined). MTD = month-to-date.</p>
+      <div class="month-selector-wrap">
+        <label for="budget-month-select">Month</label>
+        <input type="month" id="budget-month-select" class="input-month" />
+      </div>
+      <div class="tracking-grid budget-cards-grid" id="monthly-budget"></div>
+    </section>
+
+    <section class="tracking-section">
+      <h2 class="section-title">Downtime cost</h2>
+      <p class="section-note">½ line $450/hr · Redbud $700/hr (running total from uploaded days)</p>
+      <div class="tracking-grid downtime-cost-grid" id="downtime-cost"></div>
+    </section>
+
+    <section class="tracking-section" id="mtd-shift-analysis-section">
+      <h2 class="section-title">MTD production analysis by shift</h2>
+      <p class="section-note">Month-to-date totals and averages by line and shift from Enter daily data. Manpower = crew × hours; throughput = coils; downtime = minutes entered by shift and line. Trends compare to prior month.</p>
+      <div class="month-selector-wrap">
+        <label for="mtd-shift-month-select">Month</label>
+        <input type="month" id="mtd-shift-month-select" class="input-month" aria-label="Month for MTD shift analysis" />
+      </div>
+      <div class="mtd-shift-table-wrap">
+        <p class="section-note"><button type="button" class="btn btn-secondary btn-small" id="btn-export-mtd-csv">Export MTD shift CSV</button></p>
+        <table class="entries-table mtd-shift-table" id="mtd-shift-table" aria-label="MTD production by line and shift">
+          <thead>
+            <tr>
+              <th>Line</th>
+              <th>Shift</th>
+              <th>Days</th>
+              <th>Coils (total)</th>
+              <th>Avg coils/shift</th>
+              <th>Man-hours</th>
+              <th>Avg crew</th>
+              <th>Downtime (min)</th>
+              <th>Avg down/shift</th>
+            </tr>
+          </thead>
+          <tbody id="mtd-shift-tbody"></tbody>
+        </table>
+      </div>
+      <h3 class="targets-title mtd-shift-trends-title">Trends (vs prior month)</h3>
+      <ul class="mtd-shift-trends-list" id="mtd-shift-trends-list" aria-label="MTD shift trends"></ul>
+      <p class="section-note mtd-shift-empty-note" id="mtd-shift-empty-note" hidden>No data for this month. Enter daily production (coils, crew, hours, downtime) to see analysis.</p>
+    </section>
+
+    <section class="tracking-section two-col">
+      <div>
+        <h2 class="section-title">Pareto — downtime by reason</h2>
+        <div class="pareto-wrap" id="pareto-list"></div>
+      </div>
+      <div>
+        <h2 class="section-title">Performance</h2>
+        <p class="section-note">Per line and combined (coils per scheduled hour; % scheduled vs available MTD)</p>
+        <div class="tracking-grid performance-grid" id="performance"></div>
+      </div>
+    </section>
+
+    <section class="tracking-section" id="avg-operators-section">
+      <h2 class="section-title">Average operators per line by shift</h2>
+      <p class="section-note">From saved report history.</p>
+      <div class="tracking-grid" id="avg-operators-grid"></div>
+    </section>
+
+    <section class="tracking-section chart-card">
+      <h2 class="section-title">Average staffing by crew and shift</h2>
+      <p class="section-note">From Enter daily: crew (A, B, C, D) and operators per line/shift. Horizontal bar = average headcount for that crew on that shift.</p>
+      <div class="chart-wrap chart-staffing-wrap">
+        <canvas id="chart-staffing"></canvas>
+      </div>
+    </section>
+    </div>
+
+    <div id="operations-content" class="tab-content" hidden>
+      <section class="operations-inner">
+        <h2 class="section-title">Coil End Salvage Match Maker</h2>
+        <p class="section-note">Match tail/drop material to open orders. Enter tail specs and paste open orders and current production schedule. If tables are empty, paste data and click Apply.</p>
+        <div class="salvage-grid">
+          <div class="salvage-card">
+            <h3 class="targets-title">Tail / Salvage Entry</h3>
+            <div class="salvage-form" id="tail-salvage-form">
+              <label>Grade <input type="text" id="tail-grade" class="input-text salvage-input" /></label>
+              <label>Thickness (in or code) <input type="text" id="tail-thickness" class="input-text salvage-input" /></label>
+              <label>Width (in) <input type="number" id="tail-width" class="input-num salvage-input" min="0" step="0.01" /></label>
+              <label>Estimated length (in) <input type="number" id="tail-est-length" class="input-num salvage-input" min="0" step="0.01" /></label>
+              <label>Crop allowance (in) <input type="number" id="tail-crop-allowance" class="input-num salvage-input" min="0" value="12" /></label>
+              <label>Width tolerance (in) <input type="number" id="tail-width-tolerance" class="input-num salvage-input" min="0" value="0" /></label>
+              <label>Price per cwt <input type="number" id="tail-price-cwt" class="input-num salvage-input" min="0" value="51.95" /></label>
+            </div>
+            <div class="salvage-calc" id="tail-calc-display">
+              <span class="salvage-calc-label">Usable length (in):</span> <span id="tail-usable-in">—</span>
+              <span class="salvage-calc-label">Usable length (ft):</span> <span id="tail-usable-ft">—</span>
+              <span class="salvage-calc-label">Est. weight (lb):</span> <span id="tail-weight-lb">—</span>
+            </div>
+            <p class="salvage-error" id="tail-salvage-error"></p>
+          </div>
+          <div class="salvage-card">
+            <h3 class="targets-title">Current Production (exclude list)</h3>
+            <textarea id="current-production-paste" class="paste-textarea salvage-textarea" placeholder="Paste Order/Line list"></textarea>
+            <div class="paste-actions">
+              <button type="button" class="btn btn-primary" id="btn-apply-current-production">Apply</button>
+            </div>
+            <p class="section-note">OrderKeys loaded: <span id="current-production-count">0</span></p>
+          </div>
+        </div>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">Open Orders (Details)</h3>
+          <textarea id="details-paste" class="paste-textarea salvage-textarea-large" placeholder="Paste open orders table (header + data)"></textarea>
+          <div class="paste-actions">
+            <button type="button" class="btn btn-primary" id="btn-apply-details">Apply Details</button>
+          </div>
+          <p class="section-note">Rows loaded: <span id="details-rows-count">0</span></p>
+          <div class="details-table-wrap" id="details-table-wrap">
+            <table class="order-matches-table details-loaded-table" id="details-loaded-table">
+              <thead>
+                <tr>
+                  <th>Order/Line</th>
+                  <th>Grade</th>
+                  <th>Gauge / Thickness</th>
+                  <th>Width</th>
+                  <th>Length</th>
+                  <th>Balance (lbs)</th>
+                  <th>Balance (pcs)</th>
+                  <th>Due date</th>
+                </tr>
+              </thead>
+              <tbody id="details-loaded-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">Thickness Lookup</h3>
+          <textarea id="thickness-lookup-paste" class="paste-textarea salvage-textarea" placeholder="ThicknessCode	Thickness_in"></textarea>
+          <div class="paste-actions">
+            <button type="button" class="btn btn-primary" id="btn-apply-thickness">Apply lookup</button>
+          </div>
+        </div>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">Order Matches (top 25)</h3>
+          <div class="order-matches-wrap">
+            <table class="order-matches-table" id="order-matches-table">
+              <thead>
+                <tr>
+                  <th>Order/Line</th>
+                  <th>Grade</th>
+                  <th>Thickness</th>
+                  <th>Width</th>
+                  <th>Length</th>
+                  <th>Due date</th>
+                  <th>Pieces possible</th>
+                  <th>Used length (in)</th>
+                  <th>Utilization %</th>
+                  <th>Lbs possible</th>
+                  <th>Value $</th>
+                </tr>
+              </thead>
+              <tbody id="order-matches-body"></tbody>
+            </table>
+          </div>
+          <p class="section-note" id="order-matches-summary"></p>
+        </div>
+      </section>
+    </div>
+
+    <div id="schedule-content" class="tab-content" hidden>
+      <section class="schedule-inner">
+        <h2 class="section-title">Production Schedule</h2>
+        <p class="section-note">Upload an Excel production schedule file or paste your table (header + data). Expected columns: Run Date (or ord_ProdDate, Date), Due Date, planned weight (or Tons, Place, Lbs), planned PCS (or Qty), Line (or PWC Name, warehouse), Order (or Order ID). Data is extracted and used for tons per day, PCS by line, and on-time %.</p>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">Load schedule</h3>
+          <div class="material-load-options">
+            <label for="schedule-file" class="btn btn-secondary">Upload Excel (.xlsx)</label>
+            <input type="file" id="schedule-file" accept=".xlsx,.xls" aria-label="Upload production schedule Excel file" style="position:absolute;width:0;height:0;opacity:0;" />
+            <span class="material-load-sep">or paste below</span>
+          </div>
+          <textarea id="schedule-paste" class="paste-textarea salvage-textarea-large" placeholder="Paste schedule (header + rows) or upload file above"></textarea>
+          <div class="paste-actions">
+            <button type="button" class="btn btn-primary" id="btn-apply-schedule">Apply schedule</button>
+            <button type="button" class="btn btn-secondary" id="btn-export-schedule-csv">Export CSV</button>
+            <span class="paste-status" id="schedule-upload-status" aria-live="polite"></span>
+          </div>
+          <p class="section-note">Rows loaded: <span id="schedule-rows-count">0</span></p>
+        </div>
+        <div class="schedule-summary-grid">
+          <div class="salvage-card">
+            <h3 class="targets-title">Tons scheduled per day</h3>
+            <div class="schedule-table-wrap">
+              <table class="order-matches-table schedule-table" id="schedule-tons-table">
+                <thead>
+                  <tr>
+                    <th>Run date</th>
+                    <th>Tons</th>
+                    <th>Lbs</th>
+                  </tr>
+                </thead>
+                <tbody id="schedule-tons-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="salvage-card">
+            <h3 class="targets-title">PCS per day by line</h3>
+            <div class="schedule-table-wrap">
+              <table class="order-matches-table schedule-table" id="schedule-pcs-table">
+                <thead>
+                  <tr id="schedule-pcs-thead-row">
+                    <th>Run date</th>
+                    <th>Line 1</th>
+                    <th>Line 2</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody id="schedule-pcs-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">On time &amp; late % per day</h3>
+          <div class="schedule-table-wrap">
+            <table class="order-matches-table schedule-table" id="schedule-ontime-table">
+              <thead>
+                <tr>
+                  <th>Run date</th>
+                  <th>Jobs</th>
+                  <th>On time %</th>
+                  <th>Late %</th>
+                </tr>
+              </thead>
+              <tbody id="schedule-ontime-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="openstatus-content" class="tab-content" hidden>
+      <section class="schedule-inner">
+        <h2 class="section-title">Open Status</h2>
+        <p class="section-note">Load open orders from paste or from an Excel file. Balance = LBS. Expected columns: Order, Item, Due Dt, Balance, Unplanned Route (or Latest Job Pick), Ready To S, Customer (or Customer DM). Dates in Excel serial format are converted automatically. Filter by route(s), customer(s), and ready to ship.</p>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">Load open orders</h3>
+          <div class="material-load-options">
+            <label for="openstatus-file" class="btn btn-secondary">Upload Excel (.xlsx)</label>
+            <input type="file" id="openstatus-file" accept=".xlsx,.xls" aria-label="Upload Excel file" style="position:absolute;width:0;height:0;opacity:0;" />
+            <span class="material-load-sep">or paste below</span>
+          </div>
+          <textarea id="openstatus-paste" class="paste-textarea salvage-textarea-large" placeholder="Order	Item	Entry Dt	Due Dt	Customer DM	…	Balance	Unplanned Route	Latest Job Pick	…	Ready To S"></textarea>
+          <div class="paste-actions">
+            <button type="button" class="btn btn-primary" id="btn-apply-openstatus">Apply paste</button>
+            <span class="paste-status" id="openstatus-upload-status" aria-live="polite"></span>
+          </div>
+          <p class="section-note">Rows loaded: <span id="openstatus-rows-count">0</span></p>
+        </div>
+        <div class="salvage-card full-width openstatus-filters-row">
+          <h3 class="targets-title">Filters</h3>
+          <div class="openstatus-filters-grid">
+            <div>
+              <label for="openstatus-route-filter" class="openstatus-filter-label">Route</label>
+              <select id="openstatus-route-filter" class="input-select openstatus-filter openstatus-multiselect" multiple size="5"></select>
+            </div>
+            <div>
+              <label for="openstatus-customer-filter" class="openstatus-filter-label">Customer</label>
+              <select id="openstatus-customer-filter" class="input-select openstatus-filter openstatus-multiselect" multiple size="5"></select>
+            </div>
+            <div>
+              <label for="openstatus-ready-filter" class="openstatus-filter-label">Ready to ship</label>
+              <select id="openstatus-ready-filter" class="input-select openstatus-filter">
+                <option value="all">All</option>
+                <option value="ready">Ready to ship only</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="schedule-summary-grid openstatus-summary-cards">
+          <div class="salvage-card stat-card">
+            <span class="stat-label">Sum of past due (lbs)</span>
+            <span class="stat-value" id="openstatus-past-due">—</span>
+          </div>
+          <div class="salvage-card stat-card">
+            <span class="stat-label">Next 10 days balance open (lbs)</span>
+            <span class="stat-value" id="openstatus-next-10">—</span>
+          </div>
+          <div class="salvage-card stat-card">
+            <span class="stat-label">Total due for current week (lbs)</span>
+            <span class="stat-value" id="openstatus-current-week">—</span>
+          </div>
+          <div class="salvage-card stat-card stat-card-accent">
+            <span class="stat-label">Ready to ship</span>
+            <span class="stat-value" id="openstatus-ready-ship">—</span>
+          </div>
+        </div>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">Lbs due — past due + next 2 weeks</h3>
+          <p class="section-note">One line for past due (sum). One line for current week (Week N, Sunday–Saturday). Then lbs by Due Dt for next 14 days. Filtered by route(s), customer(s), ready to ship. <button type="button" class="btn btn-secondary btn-small" id="btn-export-openstatus-csv">Export CSV</button></p>
+          <div class="schedule-table-wrap">
+            <table class="order-matches-table schedule-table" id="openstatus-balance-per-day-table">
+              <thead>
+                <tr>
+                  <th>Due date</th>
+                  <th>Balance (lbs)</th>
+                  <th>Lines</th>
+                  <th>Ready to ship</th>
+                  <th>Trailers (est.)</th>
+                  <th>Ready %</th>
+                  <th>No material %</th>
+                </tr>
+              </thead>
+              <tbody id="openstatus-balance-per-day-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="orderpivot-content" class="tab-content" hidden>
+      <section class="schedule-inner">
+        <h2 class="section-title">Order due dates by customer (pivot)</h2>
+        <p class="section-note">Paste your <strong>export order status</strong> data (header row + rows). Expected columns: <strong>Order</strong>, <strong>Item</strong>, <strong>Due Dt</strong>, <strong>Customer</strong> (or Customer DM), <strong>Balance</strong>. Due Dt can be date or Excel serial; dates are parsed automatically. The pivot shows Sum of Balance by customer, with columns for Past due and each date due for the week (week begins Sunday).</p>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">Paste export order status</h3>
+          <textarea id="orderpivot-paste" class="paste-textarea salvage-textarea-large" placeholder="Order	Item	Entry Dt	Due Dt	customer	...	Balance&#10;218730	1	8/22/24	12/31/2026	Sabre Tubi OT	...	5028"></textarea>
+          <div class="paste-actions">
+            <label for="orderpivot-asof">As of date (for past due / week)</label>
+            <input type="date" id="orderpivot-asof" class="input-date" aria-label="As of date" />
+            <button type="button" class="btn btn-primary" id="btn-apply-orderpivot">Apply &amp; build pivot</button>
+            <span class="paste-status" id="orderpivot-upload-status" aria-live="polite"></span>
+          </div>
+          <p class="section-note">Rows loaded: <span id="orderpivot-rows-count">0</span></p>
+        </div>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">Summary</h3>
+          <div class="orderpivot-summary-grid">
+            <div class="stat-card">
+              <span class="stat-label">Total past due (balance)</span>
+              <span class="stat-value" id="orderpivot-summary-past-due">—</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Due on time this week (balance)</span>
+              <span class="stat-value" id="orderpivot-summary-due-week">—</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Total past due (lines)</span>
+              <span class="stat-value" id="orderpivot-summary-past-due-lines">—</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Total on time this week (lines)</span>
+              <span class="stat-value" id="orderpivot-summary-on-time-lines">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">Pivot — Sum of Balance by customer and due date</h3>
+          <p class="section-note">Row labels = customer. Columns = Past due (due before as-of date), then each date in the week (Sun–Sat). <strong>Click a cell</strong> to see order details.</p>
+          <p class="section-note orderpivot-legend">
+            <span class="orderpivot-legend-item orderpivot-legend-brightgreen">Bright green</span> 100% ready to ship ·
+            <span class="orderpivot-legend-item orderpivot-legend-lightgreen">Light green</span> ≥75% ready to ship ·
+            <span class="orderpivot-legend-item orderpivot-legend-red">Red</span> 100% not on schedule ·
+            <span class="orderpivot-legend-item orderpivot-legend-partial">Amber</span> Partially on schedule (some shipped/ready, some not) ·
+            <span class="orderpivot-legend-item orderpivot-legend-orange">Orange</span> Need to close (from Material tab notes) or &lt;5,000 lbs ·
+            <span class="orderpivot-legend-item orderpivot-legend-purple">Purple</span> No coil (material availability)
+          </p>
+          <div class="schedule-table-wrap orderpivot-table-wrap">
+            <table class="order-matches-table schedule-table orderpivot-table" id="orderpivot-table" aria-label="Pivot: balance by customer and due date">
+              <thead id="orderpivot-thead"></thead>
+              <tbody id="orderpivot-tbody"></tbody>
+            </table>
+          </div>
+          <p class="section-note" id="orderpivot-empty-note">Paste data above and click Apply to see the pivot table.</p>
+        </div>
+        <div id="orderpivot-detail-panel" class="orderpivot-detail-panel" hidden aria-live="polite">
+          <div class="orderpivot-detail-inner">
+            <div class="orderpivot-detail-header">
+              <h4 id="orderpivot-detail-title" class="targets-title">Order details</h4>
+              <button type="button" class="btn btn-secondary btn-small" id="orderpivot-detail-close" aria-label="Close">Close</button>
+            </div>
+            <div class="orderpivot-detail-table-wrap">
+              <table class="order-matches-table schedule-table" id="orderpivot-detail-table">
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Item</th>
+                    <th>Due Dt</th>
+                    <th>Balance</th>
+                    <th>Ready to ship</th>
+                    <th>Shipped</th>
+                    <th>Unplanned</th>
+                  </tr>
+                </thead>
+                <tbody id="orderpivot-detail-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="materialavailability-content" class="tab-content" hidden>
+      <section class="schedule-inner">
+        <h2 class="section-title">Material Availability</h2>
+        <p class="section-note">Load jobs from paste or from an Excel file. Expected columns: <strong>Cus Name</strong>, <strong>Order</strong>, <strong>Due</strong>, <strong>Notes</strong>. Excel: upload a workbook with multiple sheets (e.g. GR65, NONGR65, WEIGHT ACCU., CREDIT HOLD); each sheet name is used as the category. Shows only jobs where material is not available, on hold, or below min weight.</p>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">Load jobs</h3>
+          <div class="material-load-options">
+            <label for="materialavailability-file" class="btn btn-secondary">Upload Excel (.xlsx)</label>
+            <input type="file" id="materialavailability-file" accept=".xlsx,.xls" aria-label="Upload Excel file" style="position:absolute;width:0;height:0;opacity:0;" />
+            <span class="material-load-sep">or paste below</span>
+          </div>
+          <textarea id="materialavailability-paste" class="paste-textarea salvage-textarea-large" placeholder="Cus Name	Order	Due	Notes&#10;CHM Industries Inc	236196-11-1	02/23-03/02	No Coil&#10;Willbanks Metals Inc	235180-4-1	01/30-02/20	Quality Hold"></textarea>
+          <div class="paste-actions">
+            <button type="button" class="btn btn-primary" id="btn-apply-materialavailability">Apply paste</button>
+            <span class="paste-status" id="materialavailability-upload-status" aria-live="polite"></span>
+          </div>
+          <p class="section-note">Rows loaded: <span id="materialavailability-rows-count">0</span>. Showing blocked/held: <span id="materialavailability-filtered-count">0</span></p>
+        </div>
+        <div class="salvage-card full-width">
+          <label for="materialavailability-min-weight">Minimum weight for production run (lbs) — orders below this are included</label>
+          <input type="number" id="materialavailability-min-weight" class="input-num" min="0" value="0" placeholder="e.g. 20000" />
+        </div>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">No material list</h3>
+          <p class="section-note">Jobs where material is not available, on quality hold, below min weight, credit hold, or coil break. <button type="button" class="btn btn-secondary btn-small" id="btn-export-material-csv">Export CSV</button></p>
+          <div class="schedule-table-wrap">
+            <table class="order-matches-table schedule-table no-material-list" id="materialavailability-table">
+              <thead>
+                <tr id="materialavailability-thead-row">
+                  <th>Cus Name</th>
+                  <th>Order</th>
+                  <th>Due</th>
+                  <th>Tab</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="materialavailability-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="manager-content" class="tab-content" hidden>
+      <section class="schedule-inner manager-inner">
+        <h2 class="section-title">CTL Manager — Performance focus</h2>
+        <p class="section-note">Use this tab to drive performance: prioritize tasks, track impact on OTD, throughput, and downtime. Refresh after uploading or updating data.</p>
+
+        <div class="manager-kpi-strip" id="manager-kpi-strip" aria-label="At-a-glance performance"></div>
+        <div class="manager-priority-count" id="manager-priority-count" aria-live="polite"></div>
+
+        <div class="manager-focus-header">
+          <span class="manager-window">Focus window: next 3 days from today</span>
+          <div class="manager-focus-actions">
+            <button type="button" class="btn btn-secondary" id="btn-manager-copy">Copy focus list</button>
+            <button type="button" class="btn btn-secondary" id="btn-manager-export-csv">Export CSV</button>
+            <button type="button" class="btn btn-primary" id="btn-manager-refresh">Refresh focus list</button>
+          </div>
+        </div>
+        <div class="manager-focus-list-wrap" id="manager-focus-list-wrap">
+          <ul class="manager-focus-list" id="manager-focus-list" aria-label="CTL Manager 72-hour focus list"></ul>
+          <p class="section-note manager-empty-note" id="manager-empty-note" hidden>Load Open Orders, Production Schedule, and Material Availability in their tabs to see impact and focus items.</p>
+        </div>
+
+        <section class="manager-panel" id="manager-panel-48h">
+          <div class="manager-panel-header manager-panel-header-toggle" id="manager-feasibility-header" role="button" tabindex="0" aria-expanded="true" aria-controls="manager-feasibility-body" aria-label="48-hour schedule feasibility. Click to collapse or expand.">
+            <h3 class="targets-title">48-hour schedule feasibility (by line)</h3>
+            <span class="manager-panel-toggle-icon" id="manager-feasibility-toggle-icon" aria-hidden="true">▼</span>
+          </div>
+          <div id="manager-feasibility-body" class="manager-panel-body">
+          <p class="section-note">Scheduled jobs in the next 48 hours with material status. Not Ready first, then by start time.</p>
+          <div class="manager-filter-chips" id="manager-feasibility-chips">
+            <button type="button" class="manager-chip active" data-filter="all">All</button>
+            <button type="button" class="manager-chip" data-filter="not-ready">Not Ready</button>
+            <button type="button" class="manager-chip" data-filter="ready">Ready</button>
+            <button type="button" class="manager-chip" data-filter="Line 1">Line 1</button>
+            <button type="button" class="manager-chip" data-filter="Line 2">Line 2</button>
+          </div>
+          <div class="schedule-table-wrap">
+            <table class="order-matches-table schedule-table manager-feasibility-table" id="manager-feasibility-table">
+              <thead>
+                <tr>
+                  <th>Line</th>
+                  <th>Run date</th>
+                  <th>Order</th>
+                  <th>Lbs</th>
+                  <th>Material</th>
+                  <th>Reason</th>
+                  <th>Recommended action</th>
+                </tr>
+              </thead>
+              <tbody id="manager-feasibility-tbody"></tbody>
+            </table>
+          </div>
+          </div>
+        </section>
+
+        <section class="manager-panel" id="manager-panel-pastdue-split">
+          <h3 class="targets-title">Past due not scheduled — root cause &amp; fix list</h3>
+          <div class="manager-pastdue-split-grid">
+            <div class="salvage-card">
+              <h4 class="manager-subcard-title">Material ready (fast wins)</h4>
+              <p class="section-note" id="manager-fastwins-summary"></p>
+              <div class="schedule-table-wrap">
+                <table class="order-matches-table schedule-table" id="manager-fastwins-table">
+                  <thead><tr><th>Order</th><th>Customer</th><th>Lbs</th><th>Due</th></tr></thead>
+                  <tbody id="manager-fastwins-tbody"></tbody>
+                </table>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-fastwins">Copy list</button>
+            </div>
+            <div class="salvage-card">
+              <h4 class="manager-subcard-title">Material blocked (top coil gaps)</h4>
+              <p class="section-note" id="manager-blocked-summary"></p>
+              <div class="schedule-table-wrap">
+                <table class="order-matches-table schedule-table" id="manager-blocked-table">
+                  <thead><tr><th>Order</th><th>Customer</th><th>Lbs</th><th>Reason</th><th>Action</th></tr></thead>
+                  <tbody id="manager-blocked-tbody"></tbody>
+                </table>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-blocked">Copy list</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="manager-panel" id="manager-panel-otd-risk">
+          <h3 class="targets-title">OTD at-risk (next 72 hours)</h3>
+          <p class="section-note">Single primary cause per order: MATERIAL, CAPACITY, SHIPPING, QUALITY, DATA.</p>
+          <div class="schedule-table-wrap">
+            <table class="order-matches-table schedule-table manager-otd-table" id="manager-otd-risk-table">
+              <thead>
+                <tr>
+                  <th>SO#</th>
+                  <th>Customer</th>
+                  <th>Due date</th>
+                  <th>Lbs</th>
+                  <th>Scheduled</th>
+                  <th>Primary reason</th>
+                  <th>Why</th>
+                </tr>
+              </thead>
+              <tbody id="manager-otd-risk-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="manager-panel" id="manager-panel-lookahead">
+          <h3 class="targets-title">Lookahead wave detection</h3>
+          <p class="section-note">Demand vs capacity; flags: CAPACITY_TIGHT, COIL_COVERAGE_LOW, WAVE. Coil coverage and top gaps.</p>
+          <div class="manager-lookahead-cards" id="manager-lookahead-cards"></div>
+        </section>
+
+        <div id="manager-drill-wrap" class="manager-drill-wrap" hidden>
+          <div class="manager-drill-header">
+            <button type="button" class="btn btn-secondary manager-drill-back" id="btn-manager-drill-back" aria-label="Back">← Back</button>
+            <h3 class="manager-drill-title" id="manager-drill-title"></h3>
+            <button type="button" class="btn btn-primary" id="btn-manager-drill-export" aria-label="Export results as CSV" style="display: none;">Export CSV</button>
+          </div>
+          <div class="manager-drill-body" id="manager-drill-body"></div>
+        </div>
+
+        <div class="manager-summary-cards" id="manager-summary-cards"></div>
+
+        <section id="manager-forecast-suggestions-section" class="manager-forecast-suggestions" hidden>
+          <h3 class="targets-title">Performance suggestions — forecast behind target</h3>
+          <p class="section-note">When forecast is at or below 80% of WTD or MTD target, daily output by line and shift is analyzed. Use the suggestions below and paste into Claude (or another AI) for more tailored advice.</p>
+          <div class="manager-suggestions-tables" id="manager-suggestions-tables"></div>
+          <div class="manager-suggestions-list-wrap">
+            <h4 class="manager-suggestions-subtitle">Suggestions to improve performance</h4>
+            <ul class="manager-suggestions-list" id="manager-suggestions-list"></ul>
+          </div>
+          <div class="manager-suggestions-actions">
+            <button type="button" class="btn btn-secondary" id="btn-manager-copy-for-claude">Copy for Claude</button>
+          </div>
+        </section>
+      </section>
+    </div>
+
+    <div id="agent-content" class="tab-content" hidden>
+      <section class="schedule-inner agent-inner">
+        <h2 class="section-title">OTD &amp; Throughput Agent (CTL Manager)</h2>
+        <p class="section-note">The Agent uses the <strong>same data as the CTL Manager tab</strong> so it can act as your CTL Manager: prioritized focus list, past due by route, and summary. Load Open Status, Production Schedule, and Material Availability, then open the <strong>Manager</strong> tab and click <strong>Refresh focus list</strong> once so the context is complete. After that, refresh context here and click <strong>Get recommendations</strong> for a manager-style briefing. Use follow-up questions to get how-to details on any recommendation.</p>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">Context for AI</h3>
+          <p class="section-note">Summary and focus items built from your current dashboard data. Copy this to paste into an AI (e.g. Claude, Cursor) or use &quot;Get recommendations&quot; with an API key.</p>
+          <textarea id="agent-context" class="paste-textarea agent-context-textarea" readonly placeholder="Click Refresh context after loading Open Status, Schedule, and Material data."></textarea>
+          <div class="paste-actions">
+            <button type="button" class="btn btn-secondary" id="agent-refresh-context">Refresh context</button>
+            <button type="button" class="btn btn-primary" id="agent-copy-context">Copy context for AI</button>
+          </div>
+        </div>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">Get recommendations</h3>
+          <p class="section-note">Optional: use an OpenAI API key to get prioritized actions directly. Your key is sent only to OpenAI and is not stored on any server.</p>
+          <label for="agent-api-key">OpenAI API key (optional)</label>
+          <input type="password" id="agent-api-key" class="input-text agent-api-key-input" placeholder="sk-..." autocomplete="off" />
+          <div class="paste-actions" style="margin-top: 0.5rem;">
+            <button type="button" class="btn btn-primary" id="agent-get-recommendations">Get recommendations</button>
+            <span class="paste-status" id="agent-status" aria-live="polite"></span>
+          </div>
+          <div class="agent-response-wrap" id="agent-response-wrap" hidden>
+            <h4 class="targets-title">Recommendations</h4>
+            <div id="agent-response" class="agent-response-body"></div>
+          </div>
+          <div class="agent-follow-up-section" id="agent-follow-up-section" hidden>
+            <h4 class="targets-title">Ask a follow-up</h4>
+            <p class="section-note">Ask for more detail, how to do a recommendation, or clarify any suggestion. Uses the same API key and your last recommendations as context.</p>
+            <label for="agent-follow-up-question">Your question</label>
+            <textarea id="agent-follow-up-question" class="paste-textarea agent-follow-up-textarea" placeholder="e.g. How do I do recommendation 2? or Explain the equipment maintenance suggestion in more detail." rows="3"></textarea>
+            <div class="paste-actions">
+              <button type="button" class="btn btn-primary" id="agent-ask-follow-up">Ask follow-up</button>
+              <span class="paste-status" id="agent-follow-up-status" aria-live="polite"></span>
+            </div>
+            <div class="agent-follow-up-answers" id="agent-follow-up-answers"></div>
+          </div>
+        </div>
+        <div class="salvage-card full-width">
+          <h3 class="targets-title">Build 1-week SIOP plan</h3>
+          <p class="section-note">Uses the same context (Open Status, Schedule, Material) to generate a 1-week Sales, Inventory &amp; Operations plan: demand vs supply by period, gap, and recommended actions. Requires an OpenAI API key above.</p>
+          <div class="paste-actions" style="margin-top: 0.5rem;">
+            <button type="button" class="btn btn-primary" id="agent-build-siop">Build 1-week SIOP plan</button>
+            <button type="button" class="btn btn-secondary" id="agent-copy-siop-to-tab" title="Copy plan to SIOP tab" style="display: none;">Copy to SIOP tab</button>
+            <span class="paste-status" id="agent-siop-status" aria-live="polite"></span>
+          </div>
+          <div class="agent-response-wrap" id="agent-siop-response-wrap" hidden>
+            <h4 class="targets-title">1-week SIOP plan</h4>
+            <div id="agent-siop-response" class="agent-response-body"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="otdtracker-content" class="tab-content" hidden>
+      <section class="schedule-inner">
+        <h2 class="section-title">OTD Tracker</h2>
+        <p class="section-note">Add data daily and keep it for weekly/monthly analysis. Paste from Excel (include header row). Choose <strong>Append</strong> to add today’s set to existing data, or <strong>Replace</strong> to clear and load fresh. Data is saved in this browser so you can filter and export by date range.</p>
+        <div class="paste-area otd-import-area">
+          <label for="otd-tracker-paste" class="paste-label">Paste data (with headers)</label>
+          <textarea id="otd-tracker-paste" class="paste-textarea otd-import-textarea" placeholder="Paste tab- or comma-separated data here…"></textarea>
+          <div class="otd-import-options">
+            <label for="otd-report-date" class="otd-option-label">Report date for this import</label>
+            <input type="date" id="otd-report-date" class="input-date otd-report-date-input" aria-label="Report date" />
+            <label for="otd-import-mode" class="otd-option-label">Import mode</label>
+            <select id="otd-import-mode" class="input-select otd-import-mode" aria-label="Append or replace">
+              <option value="append">Append to existing</option>
+              <option value="replace">Replace all</option>
+            </select>
+          </div>
+          <div class="paste-actions">
+            <button type="button" class="btn btn-primary" id="otd-tracker-import">Import data</button>
+            <button type="button" class="btn btn-secondary" id="otd-tracker-save">Save changes</button>
+            <button type="button" class="btn btn-secondary" id="otd-tracker-add-rows">+ Add rows</button>
+            <span class="paste-status" id="otd-tracker-status" aria-live="polite"></span>
+          </div>
+        </div>
+        <div class="otd-filter-bar">
+          <label for="otd-filter-range" class="otd-filter-label">Show</label>
+          <select id="otd-filter-range" class="input-select otd-filter-select" aria-label="Filter by report date">
+            <option value="all">All data</option>
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="month">This month</option>
+          </select>
+          <button type="button" class="btn btn-secondary" id="otd-tracker-export-csv">Export CSV</button>
+        </div>
+        <div class="otd-summary-strip" id="otd-tracker-summary" aria-label="OTD % and gap to target"></div>
+        <div class="otd-tracker-wrap">
+          <table class="order-matches-table schedule-table otd-tracker-table" id="otd-tracker-table" aria-label="OTD tracking: SO, line, customer, dates, days late, cause">
+            <thead>
+              <tr>
+                <th>Report date</th>
+                <th>SO</th>
+                <th>SO_LN</th>
+                <th>Customer</th>
+                <th>cred_rls_dt</th>
+                <th>due_date</th>
+                <th>ship_date</th>
+                <th>Days Late</th>
+                <th>Cause</th>
+              </tr>
+            </thead>
+            <tbody id="otd-tracker-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <div id="siop-content" class="tab-content" hidden>
+      <section class="schedule-inner siop-inner">
+        <h2 class="section-title">Sales, Inventory &amp; Operations Planning (SIOP)</h2>
+        <p class="section-note">Align demand, supply, and capacity in one view. Use the sections below to paste or enter data, then review the plan vs actual and recommendations.</p>
+
+        <div class="siop-recommendations-card salvage-card">
+          <h3 class="targets-title">What you need to build out SIOP</h3>
+          <ul class="siop-recommendations-list">
+            <li><strong>Demand</strong> — A demand plan or forecast (e.g. by week or month): coils, tons, or $ by product/customer. Paste from Excel or enter manually. You may already have order backlog from Open Status; SIOP adds a forward-looking demand view.</li>
+            <li><strong>Supply / Capacity</strong> — Planned or actual production (coils, tons) by period. You can roll up from your Production Schedule or from the Dashboard MTD/forecast. Paste by week or month to compare to demand.</li>
+            <li><strong>Inventory (optional)</strong> — On-hand or in-transit inventory by SKU or product family. Helps show “days of supply” and whether to build ahead or pull in orders.</li>
+            <li><strong>Time buckets</strong> — Decide the planning horizon: weekly (e.g. next 4–8 weeks) or monthly (e.g. next 3–6 months). Same buckets for demand and supply so you can match them.</li>
+            <li><strong>Demand vs Supply table</strong> — A simple grid: Period | Demand | Supply | Gap | Cumulative gap. Gap = Demand − Supply; cumulative gap shows whether you’re building backlog or surplus over time.</li>
+            <li><strong>Recommendations / actions</strong> — Logic or notes such as: “Increase production in Week X,” “Pull forward orders,” “Expedite material,” based on gap and inventory. Can be manual at first, then rules later.</li>
+            <li><strong>Persistence</strong> — Like OTD Tracker, store SIOP data in the browser (localStorage) so you can compare week-over-week or month-over-month and track plan vs actual over time.</li>
+          </ul>
+          <p class="section-note" style="margin-top: 0.75rem;">Next steps: add paste areas for Demand and Supply (with headers like Period, Demand, Supply), a table that computes Gap and Cumulative Gap, and an optional “Recommendations” list. You can later add charts (demand vs supply by period) and link to your existing Production Schedule and Open Status data.</p>
+        </div>
+
+        <div class="siop-plan-from-agent salvage-card" id="siop-plan-from-agent-wrap" hidden>
+          <h3 class="targets-title">Plan from Agent</h3>
+          <p class="section-note">Last 1-week SIOP plan generated by the Agent tab. Build a plan in the Agent tab, then click &quot;Copy to SIOP tab&quot; to bring it here.</p>
+          <pre id="siop-plan-from-agent-text" class="siop-plan-from-agent-text"></pre>
+          <div class="paste-actions">
+            <button type="button" class="btn btn-secondary" id="siop-clear-agent-plan">Clear</button>
+          </div>
+        </div>
+        <div class="siop-placeholder">
+          <h3 class="targets-title">Demand vs Supply</h3>
+          <p class="section-note">Paste data with columns: <strong>Period</strong> (e.g. Day 1, Week 1), <strong>Demand</strong>, <strong>Supply</strong>. Use tabs, commas, or pipes (|) between columns. Gap = Demand − Supply; cumulative gap is the running total. Click Apply plan to calculate and fill the table below.</p>
+          <label for="siop-paste" class="paste-label">Paste demand and supply data (include header row)</label>
+          <textarea id="siop-paste" class="paste-textarea salvage-textarea-large" placeholder="Period	Demand	Supply&#10;Week 1	100	80&#10;Week 2	120	95"></textarea>
+          <div class="paste-actions">
+            <button type="button" class="btn btn-primary" id="siop-apply-plan">Apply plan</button>
+            <button type="button" class="btn btn-secondary" id="siop-save-plan">Save</button>
+            <span class="paste-status" id="siop-plan-status" aria-live="polite"></span>
+          </div>
+          <div class="schedule-table-wrap">
+            <table class="order-matches-table schedule-table siop-table" aria-label="SIOP demand vs supply">
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th>Demand</th>
+                  <th>Supply</th>
+                  <th>Gap</th>
+                  <th>Cumulative gap</th>
+                </tr>
+              </thead>
+              <tbody id="siop-tbody">
+                <tr><td colspan="5" class="siop-empty-msg">Paste demand and supply data above and click Apply plan to see the table.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="data.js"></script>
+  <script src="operations.js"></script>
+  <script src="schedule.js"></script>
+  <script src="openstatus.js"></script>
+  <script src="order-status-pivot.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="material-availability.js"></script>
+  <script src="manager-logic.js"></script>
+  <script src="manager.js"></script>
+  <script src="agent.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
