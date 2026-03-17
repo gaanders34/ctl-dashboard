@@ -80,6 +80,18 @@
     return y + '-' + m + '-' + day;
   }
 
+  /** If runDate is only a day number (1-31), build a full date key using current month/year so tables show full date. */
+  function runDateDisplayKey(row) {
+    if (row.runDateObj && !isNaN(row.runDateObj.getTime())) return dateKey(row.runDateObj);
+    var raw = (row.runDate != null ? String(row.runDate).trim() : '') || '';
+    var dayNum = parseInt(raw, 10);
+    if (raw === String(dayNum) && dayNum >= 1 && dayNum <= 31) {
+      var now = new Date();
+      return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(dayNum).padStart(2, '0');
+    }
+    return raw || '';
+  }
+
   function findColIndex(headerRow, aliases) {
     for (var i = 0; i < headerRow.length; i++) {
       var h = (headerRow[i] != null ? String(headerRow[i]) : '').toLowerCase().trim().replace(/\s+/g, ' ');
@@ -131,10 +143,16 @@
       if (typeof runDateVal === 'number' && runDateVal > 1000 && runDateVal < 1000000) {
         var rd = excelSerialToDate(runDateVal);
         runDateStr = rd ? (rd.getMonth() + 1) + '/' + rd.getDate() + '/' + rd.getFullYear() : '';
+      } else if (typeof runDateVal === 'number' && runDateVal >= 1 && runDateVal <= 31) {
+        var now = new Date();
+        runDateStr = (now.getMonth() + 1) + '/' + Math.floor(runDateVal) + '/' + now.getFullYear();
       } else if (runDateVal != null && runDateVal !== '') runDateStr = String(runDateVal).trim();
       if (typeof dueDateVal === 'number' && dueDateVal > 1000 && dueDateVal < 1000000) {
         var dd = excelSerialToDate(dueDateVal);
         dueDateStr = dd ? (dd.getMonth() + 1) + '/' + dd.getDate() + '/' + dd.getFullYear() : '';
+      } else if (typeof dueDateVal === 'number' && dueDateVal >= 1 && dueDateVal <= 31) {
+        var nowDue = new Date();
+        dueDateStr = (nowDue.getMonth() + 1) + '/' + Math.floor(dueDateVal) + '/' + nowDue.getFullYear();
       } else if (dueDateVal != null && dueDateVal !== '') dueDateStr = String(dueDateVal).trim();
       if (dueDateStr && dueDateStr.match(/^\d{1,2}\s+[a-z]{3}\s*$/i) && yearVal) {
         var ym = dueDateStr.match(/^(\d{1,2})\s+([a-z]{3})\s*$/i);
@@ -208,7 +226,7 @@
     // Tons per day: group by run date, sum weight
     var tonsByDate = {};
     scheduleRows.forEach(function (row) {
-      var k = row.runDateObj ? dateKey(row.runDateObj) : (row.runDate || '');
+      var k = runDateDisplayKey(row);
       if (!k) return;
       if (!tonsByDate[k]) tonsByDate[k] = 0;
       tonsByDate[k] += row.weightNum;
@@ -225,7 +243,7 @@
     var pcsByDateLine = {};
     var allLines = {};
     scheduleRows.forEach(function (row) {
-      var k = row.runDateObj ? dateKey(row.runDateObj) : (row.runDate || '');
+      var k = runDateDisplayKey(row);
       if (!k) return;
       var line = row.lineName || '—';
       allLines[line] = true;
@@ -253,7 +271,7 @@
     var onTimeByDate = {};
     var lateByDate = {};
     scheduleRows.forEach(function (row) {
-      var runK = row.runDateObj ? dateKey(row.runDateObj) : (row.runDate || '');
+      var runK = runDateDisplayKey(row);
       if (!runK) return;
       if (!onTimeByDate[runK]) onTimeByDate[runK] = 0;
       if (!lateByDate[runK]) lateByDate[runK] = 0;
