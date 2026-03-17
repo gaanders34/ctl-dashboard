@@ -289,6 +289,34 @@
       .replace(/>/g, '&gt;');
   }
 
+  /** Deduplicate orders by Order/Line: one row per order+item with summed balance/ready and earliest due date. */
+  function dedupeOrdersByOrderLine(orders) {
+    var byKey = {};
+    orders.forEach(function (row) {
+      var orderLine = (row.order != null ? String(row.order).trim() : '') + (row.item != null && row.item !== '' ? '-' + String(row.item).trim() : '');
+      if (!orderLine) return;
+      if (!byKey[orderLine]) {
+        byKey[orderLine] = {
+          order: row.order,
+          item: row.item,
+          customer: row.customer || '',
+          balanceNum: 0,
+          readyNum: 0,
+          dueDate: row.dueDate,
+          dueDt: row.dueDt || ''
+        };
+      }
+      var rec = byKey[orderLine];
+      rec.balanceNum += (row.balanceNum != null && !isNaN(row.balanceNum) ? row.balanceNum : 0);
+      rec.readyNum += (row.readyNum != null && !isNaN(row.readyNum) ? row.readyNum : 0);
+      if (row.dueDate && !isNaN(row.dueDate.getTime()) && (!rec.dueDate || rec.dueDate.getTime() > row.dueDate.getTime())) {
+        rec.dueDate = row.dueDate;
+        rec.dueDt = row.dueDt || '';
+      }
+    });
+    return Object.keys(byKey).sort().map(function (k) { return byKey[k]; });
+  }
+
   /** Get orders that belong to a given period (for drill-down modal). */
   function getOrdersForPeriod(periodType, periodValue) {
     var filtered = getFilteredRows();
@@ -335,7 +363,8 @@
       if (orderOnly.indexOf('-') >= 0) orderOnly = orderOnly.split('-')[0].trim();
       return (id && blockedIds[id]) || (orderOnly && blockedIds[orderOnly]);
     }
-    var html = orders.map(function (row) {
+    var deduped = dedupeOrdersByOrderLine(orders);
+    var html = deduped.map(function (row) {
       var orderLine = (row.order || '') + (row.item != null && row.item !== '' ? '-' + row.item : '');
       var noMat = isNoMaterial(row) ? ' data-no-material="1"' : '';
       return '<tr' + noMat + '><td>' + escapeHtml(orderLine) + '</td><td>' + escapeHtml(row.customer || '') + '</td><td>' + (row.balanceNum != null ? row.balanceNum.toLocaleString() : '') + '</td><td>' + (row.readyNum != null ? row.readyNum.toLocaleString() : '') + '</td><td>' + escapeHtml(row.dueDt || '') + '</td><td>' + (isNoMaterial(row) ? 'Yes' : '') + '</td></tr>';
