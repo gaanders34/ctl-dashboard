@@ -289,6 +289,70 @@
       .replace(/>/g, '&gt;');
   }
 
+  /** Get orders that belong to a given period (for drill-down modal). */
+  function getOrdersForPeriod(periodType, periodValue) {
+    var filtered = getFilteredRows();
+    var today = todayStart();
+    if (periodType === 'past-due') {
+      return filtered.filter(function (row) {
+        var due = row.dueDate;
+        if (!due || isNaN(due.getTime())) return true;
+        var dueOnly = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+        return dueOnly < today;
+      });
+    }
+    if (periodType === 'current-week') {
+      var weekStart = getWeekStart(today);
+      var weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      return filtered.filter(function (row) {
+        var due = row.dueDate;
+        if (!due || isNaN(due.getTime())) return false;
+        var dueOnly = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+        return dueOnly >= weekStart && dueOnly <= weekEnd;
+      });
+    }
+    if (periodType === 'date' && periodValue) {
+      return filtered.filter(function (row) {
+        var due = row.dueDate;
+        if (!due || isNaN(due.getTime())) return false;
+        return dateKey(due) === periodValue;
+      });
+    }
+    return [];
+  }
+
+  function showOrdersModal(periodLabel, orders) {
+    var overlay = document.getElementById('openstatus-orders-modal');
+    var titleEl = document.getElementById('openstatus-orders-modal-title');
+    var tbody = document.getElementById('openstatus-orders-modal-body');
+    if (!overlay || !tbody) return;
+    if (titleEl) titleEl.textContent = 'Orders — ' + periodLabel;
+    var blockedIds = getBlockedOrderIds();
+    function isNoMaterial(row) {
+      var id = (row.order != null ? String(row.order).trim() : '') + (row.item != null && row.item !== '' ? '-' + String(row.item).trim() : '');
+      var orderOnly = (row.order != null ? String(row.order).trim() : '');
+      if (orderOnly.indexOf('-') >= 0) orderOnly = orderOnly.split('-')[0].trim();
+      return (id && blockedIds[id]) || (orderOnly && blockedIds[orderOnly]);
+    }
+    var html = orders.map(function (row) {
+      var orderLine = (row.order || '') + (row.item != null && row.item !== '' ? '-' + row.item : '');
+      var noMat = isNoMaterial(row) ? ' data-no-material="1"' : '';
+      return '<tr' + noMat + '><td>' + escapeHtml(orderLine) + '</td><td>' + escapeHtml(row.customer || '') + '</td><td>' + (row.balanceNum != null ? row.balanceNum.toLocaleString() : '') + '</td><td>' + (row.readyNum != null ? row.readyNum.toLocaleString() : '') + '</td><td>' + escapeHtml(row.dueDt || '') + '</td><td>' + (isNoMaterial(row) ? 'Yes' : '') + '</td></tr>';
+    }).join('');
+    tbody.innerHTML = html || '<tr><td colspan="6">No orders</td></tr>';
+    overlay.classList.add('openstatus-modal-visible');
+    overlay.setAttribute('aria-hidden', 'false');
+  }
+
+  function hideOrdersModal() {
+    var overlay = document.getElementById('openstatus-orders-modal');
+    if (overlay) {
+      overlay.classList.remove('openstatus-modal-visible');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+  }
+
   function getBlockedOrderIds() {
     var fn = typeof window.ctlMaterialAvailabilityGetBlocked === 'function' ? window.ctlMaterialAvailabilityGetBlocked : null;
     var rows = fn ? fn() : [];
@@ -401,13 +465,13 @@
       var rows = [];
       if (pastDueLbs > 0 || pastDueReady > 0) {
         var pastTrailers = trailersEst(pastDueLbs);
-        var trClass = pastTrailers > TRAILER_CAP_FLAG ? ' class="openstatus-over-capacity"' : '';
-        rows.push('<tr' + trClass + '><td>Past due</td><td>' + pastDueLbs.toLocaleString() + '</td><td>' + (pastDueLines > 0 ? pastDueLines : '—') + '</td><td>' + pastDueReady.toLocaleString() + '</td><td>' + pastTrailers + '</td><td>' + readyPct(pastDueLbs, pastDueReady) + '</td><td>' + noMaterialPct(pastDueLines, pastDueNoMaterial) + '</td></tr>');
+        var trClass = pastTrailers > TRAILER_CAP_FLAG ? ' openstatus-over-capacity' : '';
+        rows.push('<tr class="openstatus-row-clickable' + trClass + '" role="button" tabindex="0" title="Click to list orders" data-period-type="past-due" data-period-value=""><td>Past due</td><td>' + pastDueLbs.toLocaleString() + '</td><td>' + (pastDueLines > 0 ? pastDueLines : '—') + '</td><td>' + pastDueReady.toLocaleString() + '</td><td>' + pastTrailers + '</td><td>' + readyPct(pastDueLbs, pastDueReady) + '</td><td>' + noMaterialPct(pastDueLines, pastDueNoMaterial) + '</td></tr>');
       }
       if (currentWeekLbs > 0 || currentWeekReady > 0) {
         var weekTrailers = trailersEst(currentWeekLbs);
         var weekTrClass = weekTrailers > TRAILER_CAP_FLAG ? ' openstatus-over-capacity' : '';
-        rows.push('<tr class="openstatus-current-week-row' + weekTrClass + '"><td>Current week (Week ' + weekNum + ')</td><td>' + currentWeekLbs.toLocaleString() + '</td><td>' + (currentWeekLines > 0 ? currentWeekLines : '—') + '</td><td>' + currentWeekReady.toLocaleString() + '</td><td>' + weekTrailers + '</td><td>' + readyPct(currentWeekLbs, currentWeekReady) + '</td><td>' + noMaterialPct(currentWeekLines, currentWeekNoMaterial) + '</td></tr>');
+        rows.push('<tr class="openstatus-current-week-row openstatus-row-clickable' + weekTrClass + '" role="button" tabindex="0" title="Click to list orders" data-period-type="current-week" data-period-value=""><td>Current week (Week ' + weekNum + ')</td><td>' + currentWeekLbs.toLocaleString() + '</td><td>' + (currentWeekLines > 0 ? currentWeekLines : '—') + '</td><td>' + currentWeekReady.toLocaleString() + '</td><td>' + weekTrailers + '</td><td>' + readyPct(currentWeekLbs, currentWeekReady) + '</td><td>' + noMaterialPct(currentWeekLines, currentWeekNoMaterial) + '</td></tr>');
       }
       for (var i = 0; i < 14; i++) {
         var d = new Date(today);
@@ -416,8 +480,8 @@
         var cell = byDate[k];
         if (cell && (cell.balance > 0 || cell.ready > 0)) {
           var trailers = trailersEst(cell.balance);
-          var trClassDay = trailers > TRAILER_CAP_FLAG ? ' class="openstatus-over-capacity"' : '';
-          rows.push('<tr' + trClassDay + '><td>' + k + '</td><td>' + cell.balance.toLocaleString() + '</td><td>' + cell.lines + '</td><td>' + cell.ready.toLocaleString() + '</td><td>' + trailers + '</td><td>' + readyPct(cell.balance, cell.ready) + '</td><td>' + noMaterialPct(cell.lines, cell.noMaterial) + '</td></tr>');
+          var trClassDay = trailers > TRAILER_CAP_FLAG ? ' openstatus-over-capacity' : '';
+          rows.push('<tr class="openstatus-row-clickable' + trClassDay + '" role="button" tabindex="0" title="Click to list orders" data-period-type="date" data-period-value="' + escapeAttr(k) + '"><td>' + k + '</td><td>' + cell.balance.toLocaleString() + '</td><td>' + cell.lines + '</td><td>' + cell.ready.toLocaleString() + '</td><td>' + trailers + '</td><td>' + readyPct(cell.balance, cell.ready) + '</td><td>' + noMaterialPct(cell.lines, cell.noMaterial) + '</td></tr>');
         }
       }
       tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="7">No data for next 2 weeks</td></tr>';
@@ -533,6 +597,36 @@
     if (routeEl) routeEl.addEventListener('change', applyFiltersAndRender);
     if (customerEl) customerEl.addEventListener('change', applyFiltersAndRender);
     if (readyEl) readyEl.addEventListener('change', applyFiltersAndRender);
+
+    var balanceTbody = document.getElementById('openstatus-balance-per-day-body');
+    if (balanceTbody) {
+      balanceTbody.addEventListener('click', function (e) {
+        var tr = e.target && e.target.closest && e.target.closest('tr');
+        if (!tr || !tr.classList.contains('openstatus-row-clickable')) return;
+        var periodType = tr.getAttribute('data-period-type');
+        var periodValue = tr.getAttribute('data-period-value') || '';
+        var periodLabel = tr.cells[0] && tr.cells[0].textContent ? tr.cells[0].textContent.trim() : (periodType === 'past-due' ? 'Past due' : periodType === 'current-week' ? 'Current week' : periodValue);
+        var orders = getOrdersForPeriod(periodType, periodValue);
+        var blockedIds = getBlockedOrderIds();
+        function isNoMaterial(row) {
+          var id = (row.order != null ? String(row.order).trim() : '') + (row.item != null && row.item !== '' ? '-' + String(row.item).trim() : '');
+          var orderOnly = (row.order != null ? String(row.order).trim() : '');
+          if (orderOnly.indexOf('-') >= 0) orderOnly = orderOnly.split('-')[0].trim();
+          return (id && blockedIds[id]) || (orderOnly && blockedIds[orderOnly]);
+        }
+        var noMaterialOnly = orders.filter(isNoMaterial);
+        showOrdersModal('No material only — ' + periodLabel, noMaterialOnly);
+      });
+    }
+
+    var modal = document.getElementById('openstatus-orders-modal');
+    if (modal) {
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) hideOrdersModal();
+      });
+    }
+    var closeBtn = document.getElementById('openstatus-orders-modal-close');
+    if (closeBtn) closeBtn.addEventListener('click', hideOrdersModal);
   }
 
   if (document.readyState === 'loading') {

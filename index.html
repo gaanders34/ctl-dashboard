@@ -613,6 +613,30 @@
               <tbody id="openstatus-balance-per-day-body"></tbody>
             </table>
           </div>
+          <p class="section-note" style="margin-top: 0.5rem;">Click any row to list orders for that period.</p>
+        </div>
+        <div id="openstatus-orders-modal" class="openstatus-modal" aria-hidden="true" role="dialog" aria-labelledby="openstatus-orders-modal-title">
+          <div class="openstatus-modal-panel">
+            <div class="openstatus-modal-header">
+              <h3 class="openstatus-modal-title" id="openstatus-orders-modal-title">Orders</h3>
+              <button type="button" class="openstatus-modal-close" id="openstatus-orders-modal-close" aria-label="Close">×</button>
+            </div>
+            <div class="openstatus-modal-body">
+              <table class="order-matches-table schedule-table openstatus-orders-modal-table">
+                <thead>
+                  <tr>
+                    <th>Order / Line</th>
+                    <th>Customer</th>
+                    <th>Balance (lbs)</th>
+                    <th>Ready to ship</th>
+                    <th>Due date</th>
+                    <th>No material</th>
+                  </tr>
+                </thead>
+                <tbody id="openstatus-orders-modal-body"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </section>
     </div>
@@ -1045,18 +1069,8 @@
 
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="data.js"></script>
-  <script src="operations.js"></script>
-  <script src="schedule.js"></script>
-  <script src="openstatus.js"></script>
-  <script src="order-status-pivot.js"></script>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="material-availability.js"></script>
-  <script src="manager-logic.js"></script>
-  <script src="manager.js"></script>
-  <script src="agent.js"></script>
-  <script src="app.js"></script>
+  <!-- Optional: copy supabase-config.example.js to supabase-config.js and add your Supabase URL + anon key for shared department data -->
+  <script src="supabase-config.js"></script>
+  <script src="supabase-sync.js"></script>
 </body>
 </html>

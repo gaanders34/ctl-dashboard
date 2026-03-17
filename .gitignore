@@ -20,3 +20,6 @@ npm-debug.log*
 # Optional local config (if you add any)
 .env
 .env.local
+
+# Supabase config (contains API keys — use supabase-config.example.js as template)
+supabase-config.js

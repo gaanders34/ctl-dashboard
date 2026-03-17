@@ -1,0 +1,7 @@
+{
+  "name": "ctl-dashboard",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/write-supabase-config.js"
+  }
+}

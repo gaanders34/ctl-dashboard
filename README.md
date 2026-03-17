@@ -59,6 +59,33 @@ The project is a Git repo with an initial commit. To put it on GitHub:
 
    If GitHub asks for login, use a [Personal Access Token](https://github.com/settings/tokens) as the password, or sign in with GitHub CLI (`gh auth login`) if you use it.
 
+## Shared data (Supabase) — same data for the whole department
+
+By default, data is stored only in each browser’s localStorage. To have **everyone see the same data** (Open Status, Schedule, Material Availability, Manager, OTD Tracker, etc.):
+
+1. **Create a Supabase project** at [supabase.com](https://supabase.com) (free tier is enough).
+
+2. **Create the storage table**  
+   In the Supabase dashboard: **SQL Editor** → New query. Paste and run the contents of **`supabase-schema.sql`** in this repo.
+
+3. **Get your API details**  
+   In Supabase: **Settings** → **API**. Copy:
+   - **Project URL**
+   - **anon public** key
+
+4. **Add config in the project**  
+   Copy **`supabase-config.example.js`** to **`supabase-config.js`**. Edit `supabase-config.js` and set:
+   - `window.CTL_SUPABASE_URL` = your Project URL  
+   - `window.CTL_SUPABASE_ANON_KEY` = your anon key  
+
+   Do not commit `supabase-config.js` (it contains the key; it’s in `.gitignore`).
+
+5. **Deploy the app** (e.g. Netlify). When anyone opens the app, it will load and save data to Supabase so the whole department shares the same data.
+
+**Netlify:** So you don’t commit keys, use env vars. In Netlify: **Site settings** → **Environment variables** → add `CTL_SUPABASE_URL` and `CTL_SUPABASE_ANON_KEY`. Then set **Build command** to `node scripts/write-supabase-config.js` and **Publish directory** to `.` (or leave default and ensure the build creates `supabase-config.js` in the publish root). The build script writes `supabase-config.js` from those variables.
+
+If `supabase-config.js` is missing or the keys are empty, the app still runs and uses localStorage only (no shared data).
+
 ## Local network (access from 2 or more computers)
 
 To use the dashboard on **this PC and another computer on the same Wi‑Fi/LAN**:
