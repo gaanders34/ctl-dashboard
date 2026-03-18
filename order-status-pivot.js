@@ -344,15 +344,39 @@
     if (!panel || !tbody) return;
     var colLabel = colKey === 'Past due' ? 'Past due' : formatDateCol(new Date(colKey + 'T12:00:00'));
     if (titleEl) titleEl.textContent = 'Orders — ' + customer + ' — ' + colLabel;
+    var matchFn = typeof window.ctlMaterialAvailabilityMatchBlockedRowForOpenOrder === 'function' ? window.ctlMaterialAvailabilityMatchBlockedRowForOpenOrder : null;
+    var toDisp = typeof window.ctlMaterialAvailabilityRowToDisplayFields === 'function' ? window.ctlMaterialAvailabilityRowToDisplayFields : null;
     if (!details || details.length === 0) {
       tbody.innerHTML = '<tr><td colspan="7">No orders</td></tr>';
     } else {
       tbody.innerHTML = details.map(function (r) {
-        var ready = r.readyNum != null ? Number(r.readyNum).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '';
-        var shipped = r.shippedNum != null ? Number(r.shippedNum).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '';
-        var unplan = r.unplannedNum != null ? Number(r.unplannedNum).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '';
-        return '<tr><td>' + escapeHtml(r.order) + '</td><td>' + escapeHtml(r.item) + '</td><td>' + escapeHtml(r.dueDt) + '</td><td>' + (r.balance != null ? Number(r.balance).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '') + '</td><td>' + ready + '</td><td>' + shipped + '</td><td>' + unplan + '</td></tr>';
+        var openRow = { order: r.order, item: r.item };
+        var mat = matchFn ? matchFn(openRow) : null;
+        var d = mat && toDisp ? toDisp(mat) : null;
+        var orderLine = (r.order || '') + (r.item ? '-' + r.item : '');
+        if (!d) {
+          d = {
+            cusName: customer || '—',
+            order: orderLine || '—',
+            due: r.dueDt || '—',
+            tab: '—',
+            notes: '—'
+          };
+        }
+        var ownerKey = (mat && mat.order != null ? String(mat.order).trim() : '') || orderLine;
+        var orderIdAttr = ownerKey ? ' data-order="' + escapeHtml(ownerKey) + '"' : '';
+        var onList = mat ? 'Yes' : 'No';
+        var trClass = mat ? 'no-material-row' : '';
+        return '<tr class="' + trClass + '">' +
+          '<td>' + escapeHtml(d.cusName) + '</td>' +
+          '<td>' + escapeHtml(d.order) + '</td>' +
+          '<td>' + escapeHtml(d.due) + '</td>' +
+          '<td>' + escapeHtml(d.tab) + '</td>' +
+          '<td>' + escapeHtml(d.notes) + '</td>' +
+          '<td><span class="blocked-owner" contenteditable="true"' + orderIdAttr + '></span></td>' +
+          '<td>' + escapeHtml(onList) + '</td></tr>';
       }).join('');
+      if (typeof window.ctlRestoreBlockedOwners === 'function') window.ctlRestoreBlockedOwners(tbody);
     }
     panel.hidden = false;
   }

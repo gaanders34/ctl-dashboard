@@ -342,6 +342,52 @@
 
   window.ctlMaterialAvailabilityRefresh = function () { render(); };
 
+  function getValForDisplay(row, key) {
+    if (row[key] != null && row[key] !== '') return row[key];
+    var raw = row._raw || {};
+    for (var r in raw) {
+      if (r.toLowerCase().replace(/\s/g, '').indexOf(key.replace(/_/g, '')) >= 0) return raw[r];
+    }
+    return '—';
+  }
+
+  function displayFieldsFromMaterialRow(row) {
+    var cusName = getValForDisplay(row, 'customer') || (row._raw && (row._raw['Cus Name'] || row._raw['Customer'])) || '—';
+    var order = getValForDisplay(row, 'order') || '—';
+    var due = row.dueDateObj ? dateKey(row.dueDateObj) : (getValForDisplay(row, 'dueDate') || row.dueDate || '—');
+    var tab = row._sheetName != null && row._sheetName !== '' ? row._sheetName : '—';
+    var notes = [row.notes, row.status, row.reason, row._rawStatus].filter(Boolean)[0] || getValForDisplay(row, 'status') || '—';
+    return { cusName: String(cusName), order: String(order), due: String(due), tab: String(tab), notes: String(notes) };
+  }
+
+  /** Match a blocked material row to an open-order row (order + item). */
+  window.ctlMaterialAvailabilityMatchBlockedRowForOpenOrder = function (openRow) {
+    var minWeight = getMinWeightInput();
+    var blocked = materialAvailabilityRows.filter(function (row) { return isBlockedRow(row, minWeight); });
+    function moStr(r) {
+      return (r.order != null ? String(r.order).trim() : '');
+    }
+    var o = (openRow.order != null ? String(openRow.order).trim() : '');
+    var item = (openRow.item != null ? String(openRow.item).trim() : '');
+    function matches(mo) {
+      if (!mo || !o) return false;
+      if (item) {
+        var prefix = o + '-' + item;
+        return mo === prefix || mo.indexOf(prefix + '-') === 0;
+      }
+      if (mo === o) return true;
+      return mo.indexOf(o + '-') === 0;
+    }
+    for (var i = 0; i < blocked.length; i++) {
+      if (matches(moStr(blocked[i]))) return blocked[i];
+    }
+    return null;
+  };
+
+  window.ctlMaterialAvailabilityRowToDisplayFields = function (matRow) {
+    return matRow ? displayFieldsFromMaterialRow(matRow) : null;
+  };
+
   /** Return blocked rows (material not available, quality hold, etc.) for Manager tab. */
   window.ctlMaterialAvailabilityGetBlocked = function () {
     var minWeight = getMinWeightInput();

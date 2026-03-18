@@ -356,20 +356,35 @@
     var tbody = document.getElementById('openstatus-orders-modal-body');
     if (!overlay || !tbody) return;
     if (titleEl) titleEl.textContent = 'Orders — ' + periodLabel;
-    var blockedIds = getBlockedOrderIds();
-    function isNoMaterial(row) {
-      var id = (row.order != null ? String(row.order).trim() : '') + (row.item != null && row.item !== '' ? '-' + String(row.item).trim() : '');
-      var orderOnly = (row.order != null ? String(row.order).trim() : '');
-      if (orderOnly.indexOf('-') >= 0) orderOnly = orderOnly.split('-')[0].trim();
-      return (id && blockedIds[id]) || (orderOnly && blockedIds[orderOnly]);
-    }
+    var matchFn = typeof window.ctlMaterialAvailabilityMatchBlockedRowForOpenOrder === 'function' ? window.ctlMaterialAvailabilityMatchBlockedRowForOpenOrder : null;
+    var toDisp = typeof window.ctlMaterialAvailabilityRowToDisplayFields === 'function' ? window.ctlMaterialAvailabilityRowToDisplayFields : null;
     var deduped = dedupeOrdersByOrderLine(orders);
     var html = deduped.map(function (row) {
+      var mat = matchFn ? matchFn(row) : null;
+      var d = mat && toDisp ? toDisp(mat) : null;
       var orderLine = (row.order || '') + (row.item != null && row.item !== '' ? '-' + row.item : '');
-      var noMat = isNoMaterial(row) ? ' data-no-material="1"' : '';
-      return '<tr' + noMat + '><td>' + escapeHtml(orderLine) + '</td><td>' + escapeHtml(row.customer || '') + '</td><td>' + (row.balanceNum != null ? row.balanceNum.toLocaleString() : '') + '</td><td>' + (row.readyNum != null ? row.readyNum.toLocaleString() : '') + '</td><td>' + escapeHtml(row.dueDt || '') + '</td><td>' + (isNoMaterial(row) ? 'Yes' : '') + '</td></tr>';
+      if (!d) {
+        d = {
+          cusName: row.customer || '—',
+          order: orderLine || '—',
+          due: row.dueDt || '—',
+          tab: '—',
+          notes: '—'
+        };
+      }
+      var ownerKey = (mat && mat.order != null ? String(mat.order).trim() : '') || orderLine;
+      var orderIdAttr = ownerKey ? ' data-order="' + escapeHtml(ownerKey) + '"' : '';
+      return '<tr class="no-material-row">' +
+        '<td>' + escapeHtml(d.cusName) + '</td>' +
+        '<td>' + escapeHtml(d.order) + '</td>' +
+        '<td>' + escapeHtml(d.due) + '</td>' +
+        '<td>' + escapeHtml(d.tab) + '</td>' +
+        '<td>' + escapeHtml(d.notes) + '</td>' +
+        '<td><span class="blocked-owner" contenteditable="true"' + orderIdAttr + '></span></td>' +
+        '<td>Yes</td></tr>';
     }).join('');
-    tbody.innerHTML = html || '<tr><td colspan="6">No orders</td></tr>';
+    tbody.innerHTML = html || '<tr><td colspan="7">No orders</td></tr>';
+    if (typeof window.ctlRestoreBlockedOwners === 'function') window.ctlRestoreBlockedOwners(tbody);
     overlay.classList.add('openstatus-modal-visible');
     overlay.setAttribute('aria-hidden', 'false');
   }
@@ -581,13 +596,17 @@
             }
             var workbook = XLSX.read(ab, { type: 'array' });
             var rows = parseExcelWorkbook(workbook);
+            if (!rows || rows.length === 0) {
+              setUploadStatus('No rows in file. Previous report kept.', true);
+              return;
+            }
             openStatusRows = rows;
             restoreOpenStatusDateObjects();
             setEl('openstatus-rows-count', openStatusRows.length);
             renderFilters();
             applyFiltersAndRender();
             saveOpenStatusToStorage();
-            setUploadStatus('Loaded ' + rows.length + ' rows from Excel.', true);
+            setUploadStatus('Loaded ' + rows.length + ' rows from Excel. Report saved until you upload a new data set.', true);
           } catch (err) {
             setUploadStatus(err.message || 'Failed to parse Excel.', true);
           }
@@ -609,13 +628,18 @@
         setUploadStatus('', false);
         setTimeout(function () {
           var parsed = parsePaste(text);
-          openStatusRows = parsed.rows || [];
+          var rows = parsed.rows || [];
+          if (rows.length === 0) {
+            setUploadStatus('No data in paste. Previous report kept.', true);
+            return;
+          }
+          openStatusRows = rows;
           restoreOpenStatusDateObjects();
           setEl('openstatus-rows-count', openStatusRows.length);
           renderFilters();
           applyFiltersAndRender();
           saveOpenStatusToStorage();
-          setUploadStatus('Upload complete', true);
+          setUploadStatus('Upload complete. Report saved until you upload a new data set.', true);
         }, 0);
       });
     }

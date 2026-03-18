@@ -632,15 +632,17 @@
               <button type="button" class="openstatus-modal-close" id="openstatus-orders-modal-close" aria-label="Close">×</button>
             </div>
             <div class="openstatus-modal-body">
-              <table class="order-matches-table schedule-table openstatus-orders-modal-table">
+              <p class="section-note openstatus-modal-note" style="margin-top:0">Same columns as <strong>Material Availability → No material list</strong>, plus confirmation on the material list.</p>
+              <table class="order-matches-table schedule-table openstatus-orders-modal-table no-material-list">
                 <thead>
                   <tr>
-                    <th>Order / Line</th>
-                    <th>Customer</th>
-                    <th>Balance (lbs)</th>
-                    <th>Ready to ship</th>
-                    <th>Due date</th>
-                    <th>No material</th>
+                    <th>Cus Name</th>
+                    <th>Order</th>
+                    <th>Due</th>
+                    <th>Tab</th>
+                    <th>Notes</th>
+                    <th>Owner</th>
+                    <th>On material list</th>
                   </tr>
                 </thead>
                 <tbody id="openstatus-orders-modal-body"></tbody>
@@ -713,16 +715,17 @@
               <button type="button" class="btn btn-secondary btn-small" id="orderpivot-detail-close" aria-label="Close">Close</button>
             </div>
             <div class="orderpivot-detail-table-wrap">
-              <table class="order-matches-table schedule-table" id="orderpivot-detail-table">
+              <p class="section-note" style="margin:0 0 0.5rem">Aligned with <strong>Material Availability → No material list</strong>. <strong>On material list</strong> = Yes when the order line is on the blocked/no-material list.</p>
+              <table class="order-matches-table schedule-table orderpivot-detail-table no-material-list" id="orderpivot-detail-table">
                 <thead>
                   <tr>
+                    <th>Cus Name</th>
                     <th>Order</th>
-                    <th>Item</th>
-                    <th>Due Dt</th>
-                    <th>Balance</th>
-                    <th>Ready to ship</th>
-                    <th>Shipped</th>
-                    <th>Unplanned</th>
+                    <th>Due</th>
+                    <th>Tab</th>
+                    <th>Notes</th>
+                    <th>Owner</th>
+                    <th>On material list</th>
                   </tr>
                 </thead>
                 <tbody id="orderpivot-detail-tbody"></tbody>

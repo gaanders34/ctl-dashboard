@@ -1680,9 +1680,11 @@ body {
 }
 .openstatus-orders-modal-table {
   font-size: 0.85rem;
+  min-width: 720px;
 }
-.openstatus-orders-modal-table tr[data-no-material="1"] td {
-  background: rgba(245, 166, 35, 0.08);
+.openstatus-orders-modal-table.no-material-list thead tr {
+  background: var(--bg-input);
+  color: var(--text);
 }
 
 /* Manager tab — 72-hour focus list */
