@@ -1686,6 +1686,86 @@ body {
 }
 
 /* Manager tab — 72-hour focus list */
+.manager-otd-review-panel {
+  margin-bottom: 1.25rem;
+}
+
+.manager-otd-review-verdict {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-bottom: 0.75rem;
+}
+
+.manager-otd-verdict--not-optimal,
+.manager-otd-verdict--otd-risk {
+  border-color: var(--danger);
+  background: rgba(231, 76, 60, 0.08);
+}
+
+.manager-otd-verdict--review {
+  border-color: var(--warning);
+  background: rgba(245, 166, 35, 0.1);
+}
+
+.manager-otd-verdict--looks-ok {
+  border-color: var(--success);
+  background: rgba(52, 199, 89, 0.08);
+}
+
+.manager-otd-verdict--no-data {
+  border-color: var(--border);
+  background: var(--bg-input);
+}
+
+.manager-otd-verdict-title {
+  display: block;
+  font-size: 1.05rem;
+  margin-bottom: 0.35rem;
+}
+
+.manager-otd-verdict-detail {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.manager-otd-review-bullets {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.manager-otd-bullet--high { color: var(--danger); font-weight: 500; }
+.manager-otd-bullet--med { color: var(--text); }
+.manager-otd-bullet--low { color: var(--text-muted); }
+
+.manager-otd-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+.manager-otd-metric {
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+}
+
+.manager-otd-metric-label {
+  display: block;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.manager-otd-metric-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
 .manager-inner .section-title {
   margin-bottom: 0.5rem;
 }

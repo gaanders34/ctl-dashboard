@@ -325,6 +325,177 @@
     };
   }
 
+  var MIN_LBS_FLAG = 10000;
+
+  /**
+   * Compare production schedule vs open status + material (no-coil list).
+   * Answers: Is schedule optimal to catch past due and protect near-term OTD?
+   */
+  function getScheduleOtdReview(openRows, scheduleRows, blockedList, today) {
+    today = today || new Date();
+    today.setHours(0, 0, 0, 0);
+    var onSchedule = {};
+    (scheduleRows || []).forEach(function (r) {
+      var o = normalizeOrderId(r);
+      if (o) onSchedule[o] = true;
+      if (r.order) {
+        var base = (r.order + '').toString().trim();
+        if (base) onSchedule[base] = true;
+      }
+    });
+
+    var blockedByOrder = {};
+    (blockedList || []).forEach(function (b) {
+      var o = normalizeOrderId(b);
+      if (o) blockedByOrder[o] = b;
+    });
+
+    var h3End = new Date(today);
+    h3End.setDate(h3End.getDate() + 2);
+    var h7End = new Date(today);
+    h7End.setDate(h7End.getDate() + 6);
+
+    var pastDueReadyNotSched = { lbs: 0, count: 0 };
+    var pastDueBlockedNotSched = { lbs: 0, count: 0 };
+    var next3ReadyNotSched = { lbs: 0, count: 0 };
+    var next3BlockedNotSched = { lbs: 0, count: 0 };
+    var next3OnSched = { lbs: 0, count: 0 };
+    var next7ReadyNotSched = { lbs: 0, count: 0 };
+
+    (openRows || []).forEach(function (row) {
+      var bal = row.balanceNum || 0;
+      if (bal <= 0) return;
+      var due = row.dueDate;
+      var dueOnly = due && !isNaN(due.getTime()) ? new Date(due.getFullYear(), due.getMonth(), due.getDate()) : null;
+      if (!dueOnly) return;
+      var orderId = normalizeOrderId(row);
+      if (!orderId) return;
+      var scheduled = !!onSchedule[orderId];
+
+      var blocked = blockedByOrder[orderId];
+      var readiness = getMaterialReadiness(row, blocked ? [blocked] : []);
+
+      if (dueOnly < today) {
+        if (scheduled) return;
+        if (readiness.ready) {
+          pastDueReadyNotSched.lbs += bal;
+          pastDueReadyNotSched.count += 1;
+        } else {
+          pastDueBlockedNotSched.lbs += bal;
+          pastDueBlockedNotSched.count += 1;
+        }
+        return;
+      }
+
+      if (dueOnly >= today && dueOnly <= h3End) {
+        if (scheduled) {
+          next3OnSched.lbs += bal;
+          next3OnSched.count += 1;
+        } else if (readiness.ready) {
+          next3ReadyNotSched.lbs += bal;
+          next3ReadyNotSched.count += 1;
+        } else {
+          next3BlockedNotSched.lbs += bal;
+          next3BlockedNotSched.count += 1;
+        }
+      }
+
+      if (dueOnly > h3End && dueOnly <= h7End && !scheduled && readiness.ready) {
+        next7ReadyNotSched.lbs += bal;
+        next7ReadyNotSched.count += 1;
+      }
+    });
+
+    var now = new Date();
+    var feas = getScheduleFeasibility48h(scheduleRows, blockedList, now);
+    var jobs48 = feas.jobs || [];
+    var notReady48 = jobs48.filter(function (j) { return !j.materialReady; }).length;
+    var total48 = jobs48.length;
+    var pctNotReady48 = total48 > 0 ? Math.round((notReady48 / total48) * 100) : 0;
+
+    var bullets = [];
+    var verdict = 'LOOKS_OK';
+    var verdictTitle = 'Schedule vs OTD';
+    var verdictDetail = '';
+
+    if (pastDueReadyNotSched.lbs >= MIN_LBS_FLAG || pastDueReadyNotSched.count >= 3) {
+      verdict = 'NOT_OPTIMAL';
+      verdictTitle = 'Not optimal — catch-up gap';
+      bullets.push({
+        sev: 'high',
+        text: pastDueReadyNotSched.count + ' past-due order(s), ' + pastDueReadyNotSched.lbs.toLocaleString() + ' lbs — material ready but NOT on production schedule. Add to schedule to catch up.'
+      });
+    }
+    if (next3ReadyNotSched.lbs >= MIN_LBS_FLAG || next3ReadyNotSched.count >= 2) {
+      if (verdict === 'LOOKS_OK') verdict = 'OTD_RISK';
+      verdictTitle = verdict === 'NOT_OPTIMAL' ? verdictTitle : 'OTD at risk';
+      bullets.push({
+        sev: 'high',
+        text: next3ReadyNotSched.count + ' order(s) due in next 3 days, ' + next3ReadyNotSched.lbs.toLocaleString() + ' lbs — ready but NOT on schedule. Protect OTD by scheduling now.'
+      });
+    }
+    if (next7ReadyNotSched.lbs >= MIN_LBS_FLAG * 2 && next3ReadyNotSched.count === 0) {
+      bullets.push({
+        sev: 'med',
+        text: 'Next 7 days: ' + next7ReadyNotSched.count + ' ready order(s) (' + next7ReadyNotSched.lbs.toLocaleString() + ' lbs) still not on schedule — review sequence for the week.'
+      });
+    }
+    if (total48 >= 4 && (notReady48 >= 3 || pctNotReady48 >= 40)) {
+      bullets.push({
+        sev: 'med',
+        text: 'Next 48h: ' + notReady48 + ' of ' + total48 + ' planned runs lack material (' + pctNotReady48 + '%). Resequence toward ready work or clear holds so the board matches reality.'
+      });
+    }
+    if (pastDueBlockedNotSched.lbs >= MIN_LBS_FLAG && pastDueReadyNotSched.lbs < MIN_LBS_FLAG) {
+      bullets.push({
+        sev: 'med',
+        text: pastDueBlockedNotSched.count + ' past-due order(s) blocked on material list (' + pastDueBlockedNotSched.lbs.toLocaleString() + ' lbs). Schedule alone cannot close these until material releases.'
+      });
+    }
+    if (next3BlockedNotSched.count >= 2) {
+      bullets.push({
+        sev: 'low',
+        text: next3BlockedNotSched.count + ' order(s) due in 3 days on no-material list — escalate owners so they can slot after release.'
+      });
+    }
+
+    if (bullets.length === 0) {
+      if ((openRows || []).length === 0 && (scheduleRows || []).length === 0) {
+        verdict = 'NO_DATA';
+        verdictTitle = 'Load data first';
+        verdictDetail = 'Paste or upload Open Status, Production Schedule, and Material Availability, then click Refresh focus list.';
+      } else {
+        verdictDetail = 'No large gaps found: past-due ready work appears scheduled or cleared; near-term ready dues are mostly on schedule. Still validate capacity vs tons planned.';
+      }
+    } else if (verdict === 'LOOKS_OK') {
+      verdict = 'REVIEW';
+      verdictTitle = 'Review recommended';
+    }
+
+    if (verdict === 'NOT_OPTIMAL' || verdict === 'OTD_RISK') {
+      verdictDetail = 'Prioritize adding ready past-due and near-due orders to the schedule; use 48-hour feasibility to avoid booking not-ready work ahead of ready work.';
+    }
+
+    return {
+      verdict: verdict,
+      verdictTitle: verdictTitle,
+      verdictDetail: verdictDetail,
+      bullets: bullets,
+      metrics: {
+        pastDueReadyNotSchedLbs: pastDueReadyNotSched.lbs,
+        pastDueReadyNotSchedCount: pastDueReadyNotSched.count,
+        pastDueBlockedNotSchedLbs: pastDueBlockedNotSched.lbs,
+        pastDueBlockedNotSchedCount: pastDueBlockedNotSched.count,
+        next3ReadyNotSchedLbs: next3ReadyNotSched.lbs,
+        next3ReadyNotSchedCount: next3ReadyNotSched.count,
+        next3BlockedNotSchedCount: next3BlockedNotSched.count,
+        next3OnSchedLbs: next3OnSched.lbs,
+        scheduled48hTotal: total48,
+        scheduled48hNotReady: notReady48
+      }
+    };
+  }
+
   return {
     REASON_CODES: REASON_CODES,
     RISK_REASONS: RISK_REASONS,
@@ -333,6 +504,7 @@
     getPrimaryRisk: getPrimaryRisk,
     getScheduleFeasibility48h: getScheduleFeasibility48h,
     getPastDueNotScheduledSplit: getPastDueNotScheduledSplit,
+    getScheduleOtdReview: getScheduleOtdReview,
     getLookahead: getLookahead,
     getBlockedReasonFromStatus: getBlockedReasonFromStatus,
     normalizeOrderId: normalizeOrderId,

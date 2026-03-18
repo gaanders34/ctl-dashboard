@@ -1248,6 +1248,32 @@
       }).join('');
     }
 
+    var review = Logic.getScheduleOtdReview(openRows, scheduleRows, blockedList, today);
+    var verdictEl = document.getElementById('manager-otd-review-verdict');
+    var bulletsEl = document.getElementById('manager-otd-review-bullets');
+    var metricsEl = document.getElementById('manager-otd-review-metrics');
+    if (verdictEl) {
+      var vClass = 'manager-otd-verdict manager-otd-verdict--' + (review.verdict || 'OK').toLowerCase().replace(/_/g, '-');
+      verdictEl.className = vClass;
+      verdictEl.innerHTML = '<strong class="manager-otd-verdict-title">' + escapeHtml(review.verdictTitle) + '</strong>' +
+        (review.verdictDetail ? '<p class="manager-otd-verdict-detail">' + escapeHtml(review.verdictDetail) + '</p>' : '');
+    }
+    if (bulletsEl) {
+      bulletsEl.innerHTML = (review.bullets || []).map(function (b) {
+        return '<li class="manager-otd-bullet manager-otd-bullet--' + escapeHtml(b.sev) + '">' + escapeHtml(b.text) + '</li>';
+      }).join('');
+    }
+    if (metricsEl && review.metrics) {
+      var m = review.metrics;
+      metricsEl.innerHTML =
+        '<div class="manager-otd-metric-grid">' +
+        '<div class="manager-otd-metric"><span class="manager-otd-metric-label">Past due, ready, not on schedule</span><span class="manager-otd-metric-value">' + m.pastDueReadyNotSchedCount + ' orders · ' + m.pastDueReadyNotSchedLbs.toLocaleString() + ' lbs</span></div>' +
+        '<div class="manager-otd-metric"><span class="manager-otd-metric-label">Due next 3 days, ready, not on schedule</span><span class="manager-otd-metric-value">' + m.next3ReadyNotSchedCount + ' orders · ' + m.next3ReadyNotSchedLbs.toLocaleString() + ' lbs</span></div>' +
+        '<div class="manager-otd-metric"><span class="manager-otd-metric-label">Due next 3 days on schedule</span><span class="manager-otd-metric-value">' + m.next3OnSchedLbs.toLocaleString() + ' lbs (open balance)</span></div>' +
+        '<div class="manager-otd-metric"><span class="manager-otd-metric-label">48h schedule: runs without material</span><span class="manager-otd-metric-value">' + m.scheduled48hNotReady + ' / ' + m.scheduled48hTotal + ' planned</span></div>' +
+        '</div>';
+    }
+
     var split = Logic.getPastDueNotScheduledSplit(openRows, scheduleRows, blockedList, today);
     var fastwinsSummary = document.getElementById('manager-fastwins-summary');
     if (fastwinsSummary) fastwinsSummary.textContent = 'Top 10 · Total ' + split.materialReady.totalLbs.toLocaleString() + ' lbs. Add to schedule (material ready).';
