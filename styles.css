@@ -341,6 +341,45 @@ body {
   margin: 0.5rem 0 1rem;
 }
 
+/* Start of shift — daily production guide */
+.start-of-shift-section {
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.start-of-shift-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+  color: var(--text);
+}
+
+.start-of-shift-hint {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.start-of-shift-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.start-of-shift-link {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.start-of-shift-link:hover {
+  text-decoration: underline;
+}
+
 /* Dashboard top banner */
 .dashboard-banner {
   padding: 0.6rem 1rem;
@@ -1517,6 +1556,42 @@ body {
 .no-material-list .no-material-empty td {
   background: transparent;
   color: var(--text-muted);
+}
+
+.blocked-owner {
+  display: inline-block;
+  min-width: 6rem;
+  max-width: 10rem;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text);
+  outline: none;
+}
+
+.blocked-owner:empty::before {
+  content: 'Assign…';
+  color: var(--text-muted);
+}
+
+.blocked-owner:focus {
+  border-color: var(--primary);
+}
+
+.no-material-list .no-material-row .blocked-owner {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.no-material-list .no-material-row .blocked-owner:empty::before {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.manager-blocked-table .blocked-owner {
+  min-width: 5rem;
 }
 
 /* Lbs due table: flag days over 60 trailers */

@@ -208,11 +208,11 @@
     if (!tbody) return;
 
     if (theadRow) {
-      theadRow.innerHTML = '<th>Cus Name</th><th>Order</th><th>Due</th><th>Tab</th><th>Notes</th>';
+      theadRow.innerHTML = '<th>Cus Name</th><th>Order</th><th>Due</th><th>Tab</th><th>Notes</th><th>Owner</th>';
     }
 
     if (filtered.length === 0) {
-      tbody.innerHTML = '<tr class="no-material-empty"><td colspan="5">No jobs match (material not available, quality hold, below min weight, credit hold, coil break)</td></tr>';
+      tbody.innerHTML = '<tr class="no-material-empty"><td colspan="6">No jobs match (material not available, quality hold, below min weight, credit hold, coil break)</td></tr>';
       return;
     }
 
@@ -225,6 +225,7 @@
       return '—';
     }
 
+    var orderIdAttr = function (o) { return (o && String(o).trim()) ? ' data-order="' + escapeHtml(String(o).trim()) + '"' : ''; };
     var rows = filtered.map(function (row) {
       var cusName = getVal(row, 'customer') || row._raw['Cus Name'] || row._raw['Customer'] || '—';
       var order = getVal(row, 'order') || '—';
@@ -237,9 +238,11 @@
         '<td>' + escapeHtml(String(due)) + '</td>' +
         '<td>' + escapeHtml(String(tab)) + '</td>' +
         '<td>' + escapeHtml(String(notes)) + '</td>' +
+        '<td><span class="blocked-owner" contenteditable="true"' + orderIdAttr(order) + '></span></td>' +
       '</tr>';
     });
     tbody.innerHTML = rows.join('');
+    if (typeof window.ctlRestoreBlockedOwners === 'function') window.ctlRestoreBlockedOwners(tbody);
   }
 
   function setUploadStatus(message, isComplete) {

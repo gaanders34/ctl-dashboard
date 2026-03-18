@@ -1261,55 +1261,13 @@
     if (blockedSummary) blockedSummary.textContent = 'Top 10 · Total ' + split.materialBlocked.totalLbs.toLocaleString() + ' lbs. Top gaps: ' + (split.materialBlocked.topGaps.map(function (g) { return g.reasonCode; }).join(', ') || '—');
     var blockedTbody = document.getElementById('manager-blocked-tbody');
     if (blockedTbody) {
-      blockedTbody.innerHTML = split.materialBlocked.orders.length === 0 ? '<tr><td colspan="5">None</td></tr>' : split.materialBlocked.orders.map(function (o) {
-        return '<tr><td>' + escapeHtml(o.orderId) + '</td><td>' + escapeHtml(o.customer) + '</td><td>' + (o.balance || 0).toLocaleString() + '</td><td>' + escapeHtml(o.reasonCode || '—') + '</td><td>' + escapeHtml((o.actionText || '').slice(0, 60)) + '</td></tr>';
+      var orderIdAttr = function (id) { return (id && String(id).trim()) ? ' data-order="' + escapeHtml(String(id).trim()) + '"' : ''; };
+      blockedTbody.innerHTML = split.materialBlocked.orders.length === 0 ? '<tr><td colspan="6">None</td></tr>' : split.materialBlocked.orders.map(function (o) {
+        return '<tr><td>' + escapeHtml(o.orderId) + '</td><td>' + escapeHtml(o.customer) + '</td><td>' + (o.balance || 0).toLocaleString() + '</td><td>' + escapeHtml(o.reasonCode || '—') + '</td><td>' + escapeHtml((o.actionText || '').slice(0, 60)) + '</td><td><span class="blocked-owner" contenteditable="true"' + orderIdAttr(o.orderId) + '></span></td></tr>';
       }).join('');
+      if (typeof window.ctlRestoreBlockedOwners === 'function') window.ctlRestoreBlockedOwners(blockedTbody);
     }
     _lastOperationalData = { split: split };
-
-    var otdRows = openRows.filter(function (row) {
-      var due = row.dueDate;
-      if (!due || isNaN(due.getTime())) return true;
-      var dueOnly = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-      return dueOnly <= end72;
-    });
-    var otdWithRisk = otdRows.map(function (row) {
-      var orderId = Logic.normalizeOrderId(row);
-      var isOnBlockedList = !!blockedOrderIds[orderId];
-      var isScheduled = !!orderIdsOnSchedule[orderId];
-      var scheduledCompletionDate = null;
-      scheduleRows.forEach(function (r) {
-        if (Logic.normalizeOrderId(r) === orderId && r.dueDateObj) scheduledCompletionDate = r.dueDateObj;
-      });
-      var risk = Logic.getPrimaryRisk(row, {
-        isOnBlockedList: isOnBlockedList,
-        isScheduled: isScheduled,
-        scheduledCompletionDate: scheduledCompletionDate,
-        hasQualityHold: isOnBlockedList && (row._qualityHold || (blockedList.find(function (b) { return Logic.normalizeOrderId(b) === orderId; }) || {}).notes || '').toLowerCase().indexOf('quality hold') >= 0,
-        hasDataMissing: !row.order || !row.dueDate || row.balanceNum == null,
-        hasShippingConstraint: false,
-        capacityTight: false,
-        insufficientPlannedHours: false
-      });
-      var dueStr = row.dueDate && !isNaN(row.dueDate.getTime()) ? Logic.dateKey(row.dueDate) : '—';
-      var schedLine = isScheduled ? (scheduleRows.find(function (r) { return Logic.normalizeOrderId(r) === orderId; }) || {}).lineName || '—' : '—';
-      return {
-        orderId: orderId,
-        customer: (row.customer || '').toString().trim() || '—',
-        dueStr: dueStr,
-        lbs: row.balanceNum || 0,
-        scheduledLine: schedLine,
-        reason: risk.reason,
-        why: risk.why
-      };
-    });
-    otdWithRisk.sort(function (a, b) { return a.dueStr.localeCompare(b.dueStr); });
-    var otdTbody = document.getElementById('manager-otd-risk-tbody');
-    if (otdTbody) {
-      otdTbody.innerHTML = otdWithRisk.length === 0 ? '<tr><td colspan="7">No orders due in next 72h.</td></tr>' : otdWithRisk.slice(0, 50).map(function (o) {
-        return '<tr><td>' + escapeHtml(o.orderId) + '</td><td>' + escapeHtml(o.customer) + '</td><td>' + escapeHtml(o.dueStr) + '</td><td>' + (o.lbs || 0).toLocaleString() + '</td><td>' + escapeHtml(o.scheduledLine) + '</td><td><span class="manager-risk-badge" title="' + escapeHtml(o.why) + '">' + escapeHtml(o.reason) + '</span></td><td>' + escapeHtml(o.why) + '</td></tr>';
-      }).join('');
-    }
 
     var lookaheadOptions = getLookaheadCapacityOptions();
     var lookahead7 = Logic.getLookahead(7, openRows, scheduleRows, blockedList, lookaheadOptions);

@@ -12,6 +12,7 @@
   var EQUIPMENT_KEY = 'ctl-equipment-list';
   var ISSUES_KEY = 'ctl-issue-types';
   var THEME_KEY = 'ctl-theme';
+  var BLOCKED_OWNERS_KEY = 'ctl-blocked-owners';
 
   var currentReport = null;
   var chartCoils = null;
@@ -1704,6 +1705,43 @@
       var tab = btn.getAttribute('data-tab');
       if (tab) btn.addEventListener('click', function () { switchTab(tab); });
     });
+
+    document.querySelectorAll('.start-of-shift-link').forEach(function (link) {
+      var tab = link.getAttribute('data-tab');
+      if (tab) link.addEventListener('click', function (e) { e.preventDefault(); switchTab(tab); });
+    });
+
+    function getBlockedOwners() {
+      try {
+        var raw = localStorage.getItem(BLOCKED_OWNERS_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) { return {}; }
+    }
+    function saveBlockedOwner(orderId, name) {
+      var o = getBlockedOwners();
+      if (name && name.trim()) o[orderId] = name.trim(); else delete o[orderId];
+      try { localStorage.setItem(BLOCKED_OWNERS_KEY, JSON.stringify(o)); } catch (e) {}
+    }
+    window.ctlRestoreBlockedOwners = function (container) {
+      if (!container) return;
+      var saved = getBlockedOwners();
+      container.querySelectorAll('.blocked-owner[data-order]').forEach(function (el) {
+        var id = el.getAttribute('data-order');
+        if (id && saved[id]) el.textContent = saved[id];
+      });
+    };
+    document.body.addEventListener('input', function (e) {
+      if (e.target && e.target.classList && e.target.classList.contains('blocked-owner')) {
+        var id = e.target.getAttribute('data-order');
+        if (id) saveBlockedOwner(id, e.target.textContent);
+      }
+    });
+    document.body.addEventListener('blur', function (e) {
+      if (e.target && e.target.classList && e.target.classList.contains('blocked-owner')) {
+        var id = e.target.getAttribute('data-order');
+        if (id) saveBlockedOwner(id, e.target.textContent);
+      }
+    }, true);
 
     var reportDateSelect = document.getElementById('report-date-select');
     if (reportDateSelect) reportDateSelect.addEventListener('change', function () {

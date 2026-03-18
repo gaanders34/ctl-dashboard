@@ -49,6 +49,16 @@
     </nav>
 
     <div id="dashboard-content" class="tab-content">
+    <section class="start-of-shift-section" id="start-of-shift-section" aria-label="Daily production guide">
+      <h2 class="start-of-shift-title">Start of shift — use this order</h2>
+      <p class="start-of-shift-hint">Walk <strong>1 → 2 → 3 → 4</strong> with supervisor: set today’s priorities, assign an owner for every blocked job, then check daily performance.</p>
+      <ol class="start-of-shift-list">
+        <li><a href="#" class="start-of-shift-link" data-tab="schedule">Production Schedule</a> — what we’re running today</li>
+        <li><a href="#" class="start-of-shift-link" data-tab="materialavailability">Material Availability (No material list)</a> — assign owner for each; chase material then reschedule</li>
+        <li><a href="#" class="start-of-shift-link" data-tab="openstatus">Open Status</a> — what’s stuck or due</li>
+        <li><strong>Dashboard</strong> — daily performance (forecast, alerts)</li>
+      </ol>
+    </section>
     <section class="dashboard-banner" id="dashboard-banner" aria-live="polite" title="Forecast coils: week (WTD) and month (MTD) based on saved data">
       <div class="dashboard-banner-inner">
         <span class="banner-label" title="Week-to-date forecast">Week forecast</span>
@@ -757,6 +767,7 @@
                   <th>Due</th>
                   <th>Tab</th>
                   <th>Notes</th>
+                  <th>Owner</th>
                 </tr>
               </thead>
               <tbody id="materialavailability-body"></tbody>
@@ -838,34 +849,13 @@
               <h4 class="manager-subcard-title">Material blocked (top coil gaps)</h4>
               <p class="section-note" id="manager-blocked-summary"></p>
               <div class="schedule-table-wrap">
-                <table class="order-matches-table schedule-table" id="manager-blocked-table">
-                  <thead><tr><th>Order</th><th>Customer</th><th>Lbs</th><th>Reason</th><th>Action</th></tr></thead>
+                <table class="order-matches-table schedule-table manager-blocked-table" id="manager-blocked-table">
+                  <thead><tr><th>Order</th><th>Customer</th><th>Lbs</th><th>Reason</th><th>Action</th><th>Owner</th></tr></thead>
                   <tbody id="manager-blocked-tbody"></tbody>
                 </table>
               </div>
               <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-blocked">Copy list</button>
             </div>
-          </div>
-        </section>
-
-        <section class="manager-panel" id="manager-panel-otd-risk">
-          <h3 class="targets-title">OTD at-risk (next 72 hours)</h3>
-          <p class="section-note">Single primary cause per order: MATERIAL, CAPACITY, SHIPPING, QUALITY, DATA.</p>
-          <div class="schedule-table-wrap">
-            <table class="order-matches-table schedule-table manager-otd-table" id="manager-otd-risk-table">
-              <thead>
-                <tr>
-                  <th>SO#</th>
-                  <th>Customer</th>
-                  <th>Due date</th>
-                  <th>Lbs</th>
-                  <th>Scheduled</th>
-                  <th>Primary reason</th>
-                  <th>Why</th>
-                </tr>
-              </thead>
-              <tbody id="manager-otd-risk-tbody"></tbody>
-            </table>
           </div>
         </section>
 
