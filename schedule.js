@@ -11,10 +11,10 @@
   var COL_ALIASES = {
     runDate: ['run date', 'run_date', 'rundate', 'run date ', 'date', 'ord_proddate', 'ord proddate', 'prod date', 'prod_date'],
     dueDate: ['due date', 'due_date', 'duedate', 'due dt', 'due'],
-    plannedWeight: ['plannedweight', 'planned weight', 'tons', 'weight', 'lbs', 'plannedweight (lbs)', 'place', 'plannedweight (tons)'],
-    plannedPcs: ['plannedpcs', 'planned pcs', 'pcs', 'pieces', 'qty'],
-    line: ['pwc name', 'line', 'pwc', 'line name', 'linename', 'warehouse'],
-    order: ['order', 'order id', 'order #', 'order#', 'order/line', 'orderline', 'orderitem', 'order item', 'job', 'job #', 'work order', 'work order #', 'wo', 'work order number']
+    plannedWeight: ['plannedweight', 'planned weight', 'planned_weight', 'tons', 'weight', 'lbs', 'plannedweight (lbs)', 'place', 'plannedweight (tons)'],
+    plannedPcs: ['plannedpcs', 'planned pcs', 'planned_pc', 'planned pc', 'pcs', 'pieces', 'qty'],
+    line: ['pwc name', 'pwc_name', 'line', 'pwc', 'line name', 'linename', 'warehouse'],
+    order: ['order', 'order id', 'order #', 'order#', 'order/line', 'orderline', 'orderitem', 'order item', 'job', 'job #', 'work order', 'work order #', 'wo', 'work order number', 'bucket id', 'bucketid']
   };
 
   function normalizeHeader(name) {
@@ -94,12 +94,133 @@
 
   function findColIndex(headerRow, aliases) {
     for (var i = 0; i < headerRow.length; i++) {
-      var h = (headerRow[i] != null ? String(headerRow[i]) : '').toLowerCase().trim().replace(/\s+/g, ' ');
+      var h = (headerRow[i] != null ? String(headerRow[i]) : '').toLowerCase().trim().replace(/\s+/g, ' ').replace(/_/g, ' ');
       for (var a = 0; a < aliases.length; a++) {
         if (h.indexOf(aliases[a]) >= 0 || aliases[a].indexOf(h) >= 0) return i;
       }
     }
     return -1;
+  }
+
+  /** Normalize header for wide-table matching */
+  function normHeaderCell(h) {
+    return (h != null ? String(h).trim().toLowerCase().replace(/_/g, ' ') : '').replace(/\s+/g, ' ');
+  }
+
+  /**
+   * Map wide exports (many columns): planned_weight, planned_pc, date, due_date, PWC Name, Tons, etc.
+   * Prefers planned_weight (lbs) over a separate Tons column so both can exist without overwriting.
+   */
+  function resolveScheduleColumnIndices(headerCells) {
+    var H = headerCells.map(normHeaderCell);
+    function idxExact(want) {
+      var w = normHeaderCell(want);
+      for (var i = 0; i < H.length; i++) if (H[i] === w) return i;
+      return -1;
+    }
+    function idxFirst(candidates) {
+      for (var c = 0; c < candidates.length; c++) {
+        var w = normHeaderCell(candidates[c]);
+        for (var i = 0; i < H.length; i++) {
+          if (H[i] === w) return i;
+        }
+      }
+      for (var c = 0; c < candidates.length; c++) {
+        var w = normHeaderCell(candidates[c]);
+        if (w.length < 4) continue;
+        for (var i = 0; i < H.length; i++) {
+          if (H[i].indexOf(w) === 0 || H[i] === w) return i;
+        }
+      }
+      return -1;
+    }
+    var idxRun = idxExact('date');
+    if (idxRun < 0) idxRun = idxFirst(['run date', 'production date', 'schedule date', 'ord proddate', 'prod date', 'rundate', 'start date']);
+    var idxDue = idxFirst(['due date', 'duedate', 'due dt', 'due']);
+    if (idxDue === idxRun) idxDue = idxFirst(['due date', 'due dt']);
+    var idxPlannedLbs = idxFirst(['planned weight', 'plannedweight']);
+    var idxTonsCol = idxExact('tons');
+    var idxWeightGeneric = idxFirst(['place', 'weight lbs', 'lbs', 'plannedweight']);
+    var idxWeight = idxPlannedLbs >= 0 ? idxPlannedLbs : (idxWeightGeneric >= 0 ? idxWeightGeneric : -1);
+    var weightFromTonsOnly = idxWeight < 0 && idxTonsCol >= 0;
+    if (weightFromTonsOnly) idxWeight = idxTonsCol;
+    var weightIsTons = weightFromTonsOnly || (idxWeight >= 0 && H[idxWeight] === 'tons');
+    if (idxWeight >= 0 && idxPlannedLbs >= 0) {
+      idxWeight = idxPlannedLbs;
+      weightIsTons = false;
+    }
+    var idxPcs = idxFirst(['planned pc', 'plannedpcs', 'planned pcs', 'pieces', 'qty', 'planned_pc']);
+    var idxLine = idxFirst(['pwc name', 'line', 'warehouse', 'line name']);
+    var idxOrder = idxFirst(['order', 'order id', 'order line', 'job', 'work order', 'bucket id']);
+    var idxYear = idxExact('year');
+    return {
+      idxRun: idxRun,
+      idxDue: idxDue,
+      idxWeight: idxWeight,
+      weightIsTons: weightIsTons,
+      idxPcs: idxPcs,
+      idxLine: idxLine,
+      idxOrder: idxOrder,
+      idxYear: idxYear,
+      headerNorm: H
+    };
+  }
+
+  function buildScheduleRowFromCells(rawCells, map, yearFallback) {
+    function cell(i) {
+      if (i < 0 || i >= rawCells.length) return '';
+      var v = rawCells[i];
+      if (v == null) return '';
+      if (typeof v === 'number' && !isNaN(v)) return String(v);
+      return String(v).trim();
+    }
+    function rawNum(i) {
+      if (i < 0 || i >= rawCells.length) return null;
+      return rawCells[i];
+    }
+    var runDateStr = cell(map.idxRun);
+    var dueDateStr = cell(map.idxDue);
+    var runRaw = map.idxRun >= 0 ? rawNum(map.idxRun) : null;
+    var dueRaw = map.idxDue >= 0 ? rawNum(map.idxDue) : null;
+    if (typeof runRaw === 'number' && runRaw > 1000 && runRaw < 1000000) {
+      var rd = excelSerialToDate(runRaw);
+      runDateStr = rd ? (rd.getMonth() + 1) + '/' + rd.getDate() + '/' + rd.getFullYear() : runDateStr;
+    } else if (typeof runRaw === 'number' && runRaw >= 1 && runRaw <= 31 && runRaw === Math.floor(runRaw) && (!runDateStr || runDateStr === String(runRaw))) {
+      var nowR = new Date();
+      runDateStr = (nowR.getMonth() + 1) + '/' + Math.floor(runRaw) + '/' + nowR.getFullYear();
+    }
+    if (typeof dueRaw === 'number' && dueRaw > 1000 && dueRaw < 1000000) {
+      var dd = excelSerialToDate(dueRaw);
+      dueDateStr = dd ? (dd.getMonth() + 1) + '/' + dd.getDate() + '/' + dd.getFullYear() : dueDateStr;
+    } else if (typeof dueRaw === 'number' && dueRaw >= 1 && dueRaw <= 31 && dueRaw === Math.floor(dueRaw) && (!dueDateStr || dueDateStr === String(dueRaw))) {
+      var nowD = new Date();
+      dueDateStr = (nowD.getMonth() + 1) + '/' + Math.floor(dueRaw) + '/' + nowD.getFullYear();
+    }
+    var yearVal = map.idxYear >= 0 ? cell(map.idxYear) : (yearFallback || '');
+    if (dueDateStr && dueDateStr.match(/^\d{1,2}\s+[a-z]{3}\s*$/i) && yearVal) {
+      var ym = dueDateStr.match(/^(\d{1,2})\s+([a-z]{3})\s*$/i);
+      if (ym) {
+        var y = parseInt(yearVal, 10) || new Date().getFullYear();
+        var mon = MONTH_ABBR[(ym[2] || '').toLowerCase().slice(0, 3)];
+        if (mon != null) dueDateStr = (mon + 1) + '/' + ym[1] + '/' + y;
+      }
+    }
+    var weightVal = cell(map.idxWeight);
+    var rawW = numVal(weightVal);
+    var wNum = map.weightIsTons ? rawW * 2000 : rawW;
+    return {
+      runDate: runDateStr,
+      dueDate: dueDateStr,
+      plannedWeight: weightVal,
+      plannedPcs: map.idxPcs >= 0 ? cell(map.idxPcs) : '',
+      line: map.idxLine >= 0 ? cell(map.idxLine) : '',
+      order: map.idxOrder >= 0 ? cell(map.idxOrder) : '',
+      runDateObj: parseDate(runDateStr),
+      dueDateObj: parseDate(dueDateStr),
+      weightNum: wNum,
+      pcsNum: numVal(map.idxPcs >= 0 ? rawCells[map.idxPcs] : 0),
+      lineName: (map.idxLine >= 0 ? cell(map.idxLine) : '').trim() || '—'
+    };
   }
 
   function parseExcelWorkbook(workbook) {
@@ -110,74 +231,13 @@
     var data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
     if (!data || data.length < 2) return rows;
     var headerRow = data[0].map(function (c) { return c != null ? String(c).trim() : ''; });
-    var idxRun = findColIndex(headerRow, ['run date', 'run_date', 'date', 'ord_proddate', 'ord proddate', 'prod date']);
-    var idxDue = findColIndex(headerRow, ['due date', 'due_date', 'duedate', 'due dt', 'due']);
-    var idxWeight = findColIndex(headerRow, ['plannedweight', 'planned weight', 'tons', 'weight', 'lbs', 'place']);
-    var idxPcs = findColIndex(headerRow, ['plannedpcs', 'planned pcs', 'pcs', 'pieces', 'qty']);
-    var idxLine = findColIndex(headerRow, ['pwc name', 'line', 'pwc', 'warehouse', 'line name']);
-    var idxOrder = findColIndex(headerRow, ['order', 'order id', 'order#', 'order/line', 'orderline', 'orderitem', 'job']);
-    var idxYear = findColIndex(headerRow, ['year']);
-    var weightHeaderLower = (idxWeight >= 0 ? headerRow[idxWeight] : '').toLowerCase();
-    var weightIsTons = weightHeaderLower.indexOf('ton') >= 0 && weightHeaderLower.indexOf('lb') < 0 && weightHeaderLower.indexOf('pound') < 0;
-
-    function cell(r, i) {
-      var v = r[i];
-      if (v == null) return '';
-      if (typeof v === 'number' && !isNaN(v)) return String(v);
-      return String(v).trim();
-    }
-    function rawVal(r, i) {
-      var v = r[i];
-      if (v == null) return '';
-      return v;
-    }
+    var map = resolveScheduleColumnIndices(headerRow);
 
     for (var r = 1; r < data.length; r++) {
       var raw = data[r];
       if (!raw || !raw.length) continue;
-      var runDateVal = idxRun >= 0 ? rawVal(raw, idxRun) : '';
-      var dueDateVal = idxDue >= 0 ? rawVal(raw, idxDue) : '';
-      var yearVal = idxYear >= 0 ? cell(raw, idxYear) : '';
-      var runDateStr = runDateVal;
-      var dueDateStr = dueDateVal;
-      if (typeof runDateVal === 'number' && runDateVal > 1000 && runDateVal < 1000000) {
-        var rd = excelSerialToDate(runDateVal);
-        runDateStr = rd ? (rd.getMonth() + 1) + '/' + rd.getDate() + '/' + rd.getFullYear() : '';
-      } else if (typeof runDateVal === 'number' && runDateVal >= 1 && runDateVal <= 31) {
-        var now = new Date();
-        runDateStr = (now.getMonth() + 1) + '/' + Math.floor(runDateVal) + '/' + now.getFullYear();
-      } else if (runDateVal != null && runDateVal !== '') runDateStr = String(runDateVal).trim();
-      if (typeof dueDateVal === 'number' && dueDateVal > 1000 && dueDateVal < 1000000) {
-        var dd = excelSerialToDate(dueDateVal);
-        dueDateStr = dd ? (dd.getMonth() + 1) + '/' + dd.getDate() + '/' + dd.getFullYear() : '';
-      } else if (typeof dueDateVal === 'number' && dueDateVal >= 1 && dueDateVal <= 31) {
-        var nowDue = new Date();
-        dueDateStr = (nowDue.getMonth() + 1) + '/' + Math.floor(dueDateVal) + '/' + nowDue.getFullYear();
-      } else if (dueDateVal != null && dueDateVal !== '') dueDateStr = String(dueDateVal).trim();
-      if (dueDateStr && dueDateStr.match(/^\d{1,2}\s+[a-z]{3}\s*$/i) && yearVal) {
-        var ym = dueDateStr.match(/^(\d{1,2})\s+([a-z]{3})\s*$/i);
-        if (ym) {
-          var y = parseInt(yearVal, 10) || new Date().getFullYear();
-          var mon = MONTH_ABBR[(ym[2] || '').toLowerCase().slice(0, 3)];
-          if (mon != null) dueDateStr = (mon + 1) + '/' + ym[1] + '/' + y;
-        }
-      }
-      var weightVal = idxWeight >= 0 ? cell(raw, idxWeight) : '';
-      var rawWeight = numVal(weightVal);
-      var row = {
-        runDate: runDateStr,
-        dueDate: dueDateStr,
-        plannedWeight: weightVal,
-        plannedPcs: idxPcs >= 0 ? cell(raw, idxPcs) : '',
-        line: idxLine >= 0 ? cell(raw, idxLine) : '',
-        order: idxOrder >= 0 ? cell(raw, idxOrder) : '',
-        runDateObj: parseDate(runDateStr),
-        dueDateObj: parseDate(dueDateStr),
-        weightNum: weightIsTons ? rawWeight * 2000 : rawWeight,
-        pcsNum: numVal(idxPcs >= 0 ? raw[idxPcs] : 0),
-        lineName: (idxLine >= 0 ? cell(raw, idxLine) : '').trim() || '—'
-      };
-      rows.push(row);
+      var yearVal = map.idxYear >= 0 && raw[map.idxYear] != null ? String(raw[map.idxYear]).trim() : '';
+      rows.push(buildScheduleRowFromCells(raw, map, yearVal));
     }
     return rows;
   }
@@ -187,17 +247,29 @@
     if (lines.length < 2) return { rows: [] };
     var sep = lines[0].indexOf('\t') >= 0 ? '\t' : ',';
     var headerLine = lines[0].split(sep).map(function (h) { return h.trim(); });
+    var map = resolveScheduleColumnIndices(headerLine);
+    var useWideParser = map.idxRun >= 0 && map.idxWeight >= 0;
+    if (useWideParser) {
+      var out = [];
+      for (var i = 1; i < lines.length; i++) {
+        var cells = lines[i].split(sep).map(function (c) { return c.trim(); });
+        while (cells.length < headerLine.length) cells.push('');
+        var yearVal = map.idxYear >= 0 ? cells[map.idxYear] : '';
+        out.push(buildScheduleRowFromCells(cells, map, yearVal));
+      }
+      return { rows: out };
+    }
     var headers = headerLine.map(function (h) { return normalizeHeader(h); });
     var weightIdx = headers.indexOf('plannedWeight');
     var weightHeaderLower = (weightIdx >= 0 && headerLine[weightIdx]) ? headerLine[weightIdx].toLowerCase() : '';
     var weightIsTons = weightHeaderLower.indexOf('ton') >= 0 && weightHeaderLower.indexOf('lb') < 0 && weightHeaderLower.indexOf('pound') < 0;
 
     var rows = [];
-    for (var i = 1; i < lines.length; i++) {
-      var cells = lines[i].split(sep).map(function (c) { return c.trim(); });
+    for (var j = 1; j < lines.length; j++) {
+      var cells2 = lines[j].split(sep).map(function (c) { return c.trim(); });
       var row = {};
       headers.forEach(function (key, idx) {
-        row[key] = cells[idx];
+        row[key] = cells2[idx];
       });
       row.runDateObj = parseDate(row.runDate);
       row.dueDateObj = parseDate(row.dueDate);
@@ -346,6 +418,21 @@
     saveScheduleToStorage();
   }
 
+  function formatScheduleMapSummary(map, headerLine) {
+    if (!map || !headerLine || !headerLine.length) return '';
+    function lab(idx) {
+      return idx >= 0 && headerLine[idx] != null ? '"' + String(headerLine[idx]).trim() + '"' : '';
+    }
+    var p = [];
+    if (map.idxRun >= 0) p.push('Run date ← ' + lab(map.idxRun));
+    if (map.idxDue >= 0) p.push('Due ← ' + lab(map.idxDue));
+    if (map.idxWeight >= 0) p.push((map.weightIsTons ? 'Weight (tons→lbs)' : 'Weight (lbs)') + ' ← ' + lab(map.idxWeight));
+    if (map.idxPcs >= 0) p.push('PCS ← ' + lab(map.idxPcs));
+    if (map.idxLine >= 0) p.push('Line ← ' + lab(map.idxLine));
+    if (map.idxOrder >= 0) p.push('Order ← ' + lab(map.idxOrder));
+    return p.length ? 'Columns used: ' + p.join(' · ') : '';
+  }
+
   function init() {
     loadScheduleFromStorage();
 
@@ -385,11 +472,17 @@
       btn.addEventListener('click', function () {
         var textarea = document.getElementById('schedule-paste');
         var text = textarea ? textarea.value : '';
+        var firstLine = (text || '').split(/\r?\n/).filter(function (l) { return l.trim(); })[0] || '';
+        var sepHint = firstLine.indexOf('\t') >= 0 ? '\t' : ',';
+        var headerCellsHint = firstLine ? firstLine.split(sepHint).map(function (h) { return h.trim(); }) : [];
         setUploadStatus('', false);
         setTimeout(function () {
           var parsed = parsePaste(text);
+          var n = (parsed.rows || []).length;
           applyScheduleFromParsed(parsed.rows || []);
-          setUploadStatus('Upload complete', true);
+          var map = resolveScheduleColumnIndices(headerCellsHint);
+          var sum = formatScheduleMapSummary(map, headerCellsHint);
+          setUploadStatus(n ? ('Loaded ' + n + ' rows. ' + sum) : 'No rows parsed — need header row + data (try paste from Excel with tabs).', !!n);
         }, 0);
       });
     }

@@ -480,7 +480,7 @@
     <div id="schedule-content" class="tab-content" hidden>
       <section class="schedule-inner">
         <h2 class="section-title">Production Schedule</h2>
-        <p class="section-note">Upload an Excel production schedule file or paste your table (header + data). Expected columns: Run Date (or ord_ProdDate, Date), Due Date, planned weight (or Tons, Place, Lbs), planned PCS (or Qty), Line (or PWC Name, warehouse), Order (or Order ID). Data is extracted and used for tons per day, PCS by line, and on-time %.</p>
+        <p class="section-note">Upload Excel or <strong>paste the full raw table</strong> (header + all columns). The app finds: <strong>date</strong> or Run Date (run date), <strong>due_date</strong> / Due Date, <strong>planned_weight</strong> (lbs — preferred over a separate <strong>Tons</strong> column), <strong>planned_pc</strong> / PCS, <strong>PWC Name</strong> (line), optional Order. Wide exports (grade, custname, Month, etc.) are fine — only these columns are used for tons/day, PCS by line, and on-time %. After Apply, check the status line for which headers were mapped.</p>
         <div class="salvage-card full-width">
           <h3 class="targets-title">Load schedule</h3>
           <div class="material-load-options">
