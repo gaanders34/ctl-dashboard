@@ -306,7 +306,7 @@
     var tonsRows = Object.keys(tonsByDate).sort().map(function (k) {
       var lbs = tonsByDate[k];
       var tons = (lbs / 2000).toFixed(2);
-      return '<tr><td>' + escapeHtml(k) + '</td><td>' + tons + '</td><td>' + Math.round(lbs).toLocaleString() + '</td></tr>';
+      return '<tr class="schedule-cell-clickable" data-run-date="' + escapeHtml(k) + '"><td>' + escapeHtml(k) + '</td><td>' + tons + '</td><td>' + Math.round(lbs).toLocaleString() + '</td></tr>';
     });
     var tonsBody = document.getElementById('schedule-tons-body');
     if (tonsBody) tonsBody.innerHTML = tonsRows.length ? tonsRows.join('') : '<tr><td colspan="3">No data</td></tr>';
@@ -334,7 +334,11 @@
       var line1Pcs = pcsByDateLine[k][line1] || 0;
       var line2Pcs = pcsByDateLine[k][line2] || 0;
       var total = (line1Pcs + line2Pcs) || Object.keys(pcsByDateLine[k]).reduce(function (sum, ln) { return sum + (pcsByDateLine[k][ln] || 0); }, 0);
-      return '<tr><td>' + escapeHtml(k) + '</td><td>' + line1Pcs + '</td><td>' + line2Pcs + '</td><td>' + total + '</td></tr>';
+      return '<tr data-run-date="' + escapeHtml(k) + '">' +
+        '<td class="schedule-cell-clickable" data-run-date="' + escapeHtml(k) + '">' + escapeHtml(k) + '</td>' +
+        '<td class="schedule-cell-clickable" data-run-date="' + escapeHtml(k) + '" data-line="' + escapeHtml(line1) + '">' + line1Pcs + '</td>' +
+        '<td class="schedule-cell-clickable" data-run-date="' + escapeHtml(k) + '" data-line="' + escapeHtml(line2) + '">' + line2Pcs + '</td>' +
+        '<td class="schedule-cell-clickable" data-run-date="' + escapeHtml(k) + '">' + total + '</td></tr>';
     });
     var pcsBody = document.getElementById('schedule-pcs-body');
     if (pcsBody) pcsBody.innerHTML = pcsRows.length ? pcsRows.join('') : '<tr><td colspan="4">No data</td></tr>';
@@ -367,10 +371,46 @@
       var jobs = onTime + late;
       var onPct = jobs > 0 ? ((onTime / jobs) * 100).toFixed(1) : '0';
       var latePct = jobs > 0 ? ((late / jobs) * 100).toFixed(1) : '0';
-      return '<tr><td>' + escapeHtml(k) + '</td><td>' + jobs + '</td><td>' + onPct + '%</td><td>' + latePct + '%</td></tr>';
+      return '<tr class="schedule-cell-clickable" data-run-date="' + escapeHtml(k) + '"><td>' + escapeHtml(k) + '</td><td>' + jobs + '</td><td>' + onPct + '%</td><td>' + latePct + '%</td></tr>';
     });
     var onTimeBody = document.getElementById('schedule-ontime-body');
     if (onTimeBody) onTimeBody.innerHTML = onTimeRows.length ? onTimeRows.join('') : '<tr><td colspan="4">No data</td></tr>';
+  }
+
+  function showScheduleLineItemsModal(runDateKey, lineFilter) {
+    var overlay = document.getElementById('schedule-line-items-modal');
+    var titleEl = document.getElementById('schedule-line-items-modal-title');
+    var tbody = document.getElementById('schedule-line-items-body');
+    if (!overlay || !tbody) return;
+    var filtered = scheduleRows.filter(function (row) {
+      var k = runDateDisplayKey(row);
+      if (k !== runDateKey) return false;
+      if (lineFilter) {
+        var ln = (row.lineName || '').trim() || '—';
+        if (ln !== lineFilter) return false;
+      }
+      return true;
+    });
+    var title = 'Line items — ' + runDateKey;
+    if (lineFilter) title += ' — ' + lineFilter;
+    if (titleEl) titleEl.textContent = title;
+    tbody.innerHTML = filtered.length === 0
+      ? '<tr><td colspan="6">No rows</td></tr>'
+      : filtered.map(function (row) {
+          var runK = runDateDisplayKey(row);
+          var dueK = row.dueDateObj ? dateKey(row.dueDateObj) : (row.dueDate || '—');
+          return '<tr><td>' + escapeHtml(runK || '') + '</td><td>' + escapeHtml(dueK) + '</td><td>' + escapeHtml(row.order || '') + '</td><td>' + escapeHtml(row.lineName || '—') + '</td><td>' + (row.weightNum != null ? Math.round(row.weightNum).toLocaleString() : '') + '</td><td>' + (row.pcsNum != null ? row.pcsNum : '') + '</td></tr>';
+        }).join('');
+    overlay.classList.add('schedule-line-items-modal-visible');
+    overlay.setAttribute('aria-hidden', 'false');
+  }
+
+  function hideScheduleLineItemsModal() {
+    var overlay = document.getElementById('schedule-line-items-modal');
+    if (overlay) {
+      overlay.classList.remove('schedule-line-items-modal-visible');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
   }
 
   function setUploadStatus(message, isComplete) {
@@ -435,6 +475,26 @@
 
   function init() {
     loadScheduleFromStorage();
+
+    var scheduleContent = document.getElementById('schedule-content');
+    if (scheduleContent) {
+      scheduleContent.addEventListener('click', function (e) {
+        var cell = e.target && e.target.closest && e.target.closest('.schedule-cell-clickable');
+        if (!cell) return;
+        var runDateKey = cell.getAttribute('data-run-date');
+        if (!runDateKey) return;
+        var lineFilter = cell.getAttribute('data-line') || '';
+        showScheduleLineItemsModal(runDateKey, lineFilter || null);
+      });
+    }
+    var scheduleModalClose = document.getElementById('schedule-line-items-modal-close');
+    if (scheduleModalClose) scheduleModalClose.addEventListener('click', hideScheduleLineItemsModal);
+    var scheduleModal = document.getElementById('schedule-line-items-modal');
+    if (scheduleModal) {
+      scheduleModal.addEventListener('click', function (e) {
+        if (e.target === scheduleModal) hideScheduleLineItemsModal();
+      });
+    }
 
     var fileInput = document.getElementById('schedule-file');
     if (fileInput) {

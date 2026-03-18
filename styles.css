@@ -1406,7 +1406,7 @@ body {
 }
 
 .orderpivot-detail-inner {
-  background: var(--surface);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   max-width: 90vw;
@@ -1620,6 +1620,12 @@ body {
   background: rgba(255, 255, 255, 0.06);
 }
 
+/* All pop-out modals / panels — solid background so content is readable (not translucent) */
+.popout-panel-solid {
+  background: var(--bg-card) !important;
+  opacity: 1;
+}
+
 /* Open Status — orders drill-down modal */
 .openstatus-modal {
   position: fixed;
@@ -1685,6 +1691,71 @@ body {
 .openstatus-orders-modal-table.no-material-list thead tr {
   background: var(--bg-input);
   color: var(--text);
+}
+
+/* Production Schedule — line items drill-down modal */
+.schedule-line-items-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+}
+.schedule-line-items-modal.schedule-line-items-modal-visible {
+  opacity: 1;
+  visibility: visible;
+}
+.schedule-line-items-modal-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+.schedule-line-items-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.schedule-line-items-modal-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.schedule-line-items-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.schedule-line-items-modal-close:hover {
+  color: var(--text);
+}
+.schedule-line-items-modal-body {
+  padding: 12px 16px;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.schedule-cell-clickable {
+  cursor: pointer;
+}
+.schedule-cell-clickable:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* Manager tab — 72-hour focus list */

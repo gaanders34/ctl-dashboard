@@ -545,6 +545,31 @@
             </table>
           </div>
         </div>
+        <p class="section-note" style="margin-top: 0.5rem;">Click any row or cell to see the line items that make up that number.</p>
+
+        <div id="schedule-line-items-modal" class="schedule-line-items-modal" aria-hidden="true" role="dialog" aria-labelledby="schedule-line-items-modal-title">
+          <div class="schedule-line-items-modal-panel popout-panel-solid">
+            <div class="schedule-line-items-modal-header">
+              <h3 class="schedule-line-items-modal-title" id="schedule-line-items-modal-title">Line items</h3>
+              <button type="button" class="schedule-line-items-modal-close" id="schedule-line-items-modal-close" aria-label="Close">×</button>
+            </div>
+            <div class="schedule-line-items-modal-body">
+              <table class="order-matches-table schedule-table" id="schedule-line-items-table">
+                <thead>
+                  <tr>
+                    <th>Run date</th>
+                    <th>Due date</th>
+                    <th>Order</th>
+                    <th>Line</th>
+                    <th>Lbs</th>
+                    <th>PCS</th>
+                  </tr>
+                </thead>
+                <tbody id="schedule-line-items-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
 
@@ -626,7 +651,7 @@
           <p class="section-note" style="margin-top: 0.5rem;">Click any row to list orders for that period.</p>
         </div>
         <div id="openstatus-orders-modal" class="openstatus-modal" aria-hidden="true" role="dialog" aria-labelledby="openstatus-orders-modal-title">
-          <div class="openstatus-modal-panel">
+          <div class="openstatus-modal-panel popout-panel-solid">
             <div class="openstatus-modal-header">
               <h3 class="openstatus-modal-title" id="openstatus-orders-modal-title">Orders</h3>
               <button type="button" class="openstatus-modal-close" id="openstatus-orders-modal-close" aria-label="Close">×</button>
@@ -709,7 +734,7 @@
           <p class="section-note" id="orderpivot-empty-note">Paste data above and click Apply to see the pivot table.</p>
         </div>
         <div id="orderpivot-detail-panel" class="orderpivot-detail-panel" hidden aria-live="polite">
-          <div class="orderpivot-detail-inner">
+          <div class="orderpivot-detail-inner popout-panel-solid">
             <div class="orderpivot-detail-header">
               <h4 id="orderpivot-detail-title" class="targets-title">Order details</h4>
               <button type="button" class="btn btn-secondary btn-small" id="orderpivot-detail-close" aria-label="Close">Close</button>
