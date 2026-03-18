@@ -358,11 +358,19 @@
     if (titleEl) titleEl.textContent = 'Orders — ' + periodLabel;
     var matchFn = typeof window.ctlMaterialAvailabilityMatchBlockedRowForOpenOrder === 'function' ? window.ctlMaterialAvailabilityMatchBlockedRowForOpenOrder : null;
     var toDisp = typeof window.ctlMaterialAvailabilityRowToDisplayFields === 'function' ? window.ctlMaterialAvailabilityRowToDisplayFields : null;
+    function displayOrderLineFromOpen(row) {
+      var o = (row.order != null ? String(row.order).trim() : '');
+      var it = (row.item != null ? String(row.item).trim() : '');
+      if (!o) return '—';
+      if (!it || it === o || it === o.split('-')[0]) return o;
+      if (o.indexOf('-') > 0 && o.indexOf(it) >= 0) return o;
+      return o + '-' + it;
+    }
     var deduped = dedupeOrdersByOrderLine(orders);
     var html = deduped.map(function (row) {
       var mat = matchFn ? matchFn(row) : null;
       var d = mat && toDisp ? toDisp(mat) : null;
-      var orderLine = (row.order || '') + (row.item != null && row.item !== '' ? '-' + row.item : '');
+      var orderLine = displayOrderLineFromOpen(row);
       if (!d) {
         d = {
           cusName: row.customer || '—',

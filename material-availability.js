@@ -360,28 +360,85 @@
     return { cusName: String(cusName), order: String(order), due: String(due), tab: String(tab), notes: String(notes) };
   }
 
-  /** Match a blocked material row to an open-order row (order + item). */
+  function normCust(s) {
+    return (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  /**
+   * Match blocked material row to open order. Handles bad exports where Item duplicates Order (235108+235108 → no match to 235108-1-1).
+   */
   window.ctlMaterialAvailabilityMatchBlockedRowForOpenOrder = function (openRow) {
     var minWeight = getMinWeightInput();
     var blocked = materialAvailabilityRows.filter(function (row) { return isBlockedRow(row, minWeight); });
     function moStr(r) {
       return (r.order != null ? String(r.order).trim() : '');
     }
+    function matCust(r) {
+      var v = getValForDisplay(r, 'customer') || (r._raw && (r._raw['Cus Name'] || r._raw['Customer'])) || '';
+      return String(v).trim();
+    }
     var o = (openRow.order != null ? String(openRow.order).trim() : '');
     var item = (openRow.item != null ? String(openRow.item).trim() : '');
-    function matches(mo) {
-      if (!mo || !o) return false;
-      if (item) {
-        var prefix = o + '-' + item;
-        return mo === prefix || mo.indexOf(prefix + '-') === 0;
+    if (!o) return null;
+
+    var oBase = o.split('-')[0];
+    var fullLineInOrder = o.indexOf('-') > 0;
+
+    function itemIsDuplicateSO(orderStr, itemStr) {
+      if (!itemStr) return true;
+      if (itemStr === orderStr) return true;
+      var ob = orderStr.split('-')[0];
+      if (itemStr === ob) return true;
+      if (orderStr.indexOf('-') < 0 && itemStr === orderStr) return true;
+      return false;
+    }
+
+    var itemDup = itemIsDuplicateSO(o, item);
+    var candidates = [];
+    blocked.forEach(function (br) {
+      var mo = moStr(br);
+      if (!mo) return;
+      if (fullLineInOrder) {
+        if (mo === o || mo.indexOf(o + '-') === 0 || o.indexOf(mo) === 0) candidates.push(br);
+        return;
       }
-      if (mo === o) return true;
-      return mo.indexOf(o + '-') === 0;
+      if (item && !itemDup) {
+        var prefix = o + '-' + item;
+        if (mo === prefix || mo.indexOf(prefix + '-') === 0) candidates.push(br);
+        return;
+      }
+      if (mo === o || mo === oBase) candidates.push(br);
+      else if (mo.indexOf(oBase + '-') === 0 || (oBase && mo.indexOf(o + '-') === 0)) candidates.push(br);
+    });
+
+    if (candidates.length === 0 && itemDup) {
+      blocked.forEach(function (br) {
+        var mo = moStr(br);
+        if (mo && (mo.indexOf(oBase + '-') === 0 || mo === o)) candidates.push(br);
+      });
     }
-    for (var i = 0; i < blocked.length; i++) {
-      if (matches(moStr(blocked[i]))) return blocked[i];
-    }
-    return null;
+
+    if (candidates.length === 0) return null;
+    if (candidates.length === 1) return candidates[0];
+
+    var openC = normCust(openRow.customer || '');
+    var openDue = openRow.dueDate;
+    var best = candidates[0];
+    var bestScore = -1e9;
+    candidates.forEach(function (br) {
+      var sc = 0;
+      var mc = normCust(matCust(br));
+      if (openC && mc && (mc.indexOf(openC) >= 0 || openC.indexOf(mc) >= 0 || mc.slice(0, 12) === openC.slice(0, 12))) sc += 100;
+      if (openDue && br.dueDateObj && !isNaN(openDue.getTime()) && !isNaN(br.dueDateObj.getTime())) {
+        var days = Math.abs(openDue - br.dueDateObj) / 86400000;
+        sc += Math.max(0, 20 - Math.min(20, days));
+      }
+      if (sc > bestScore) {
+        bestScore = sc;
+        best = br;
+      }
+    });
+    return best;
   };
 
   window.ctlMaterialAvailabilityRowToDisplayFields = function (matRow) {
